@@ -7,7 +7,9 @@
 
 - R1 已本地实现：独立依赖图模块、严格导入解析、parser provenance、会话内 `repo_atlas_search` 与 `repo_atlas_impact`；既有变更生命周期保留。
 - 当前上游已重新克隆并审查：`5badb15009ae1756c3afe0ae0cef1faafc290ccc`（`0.2.1-alpha.1`）。源码审查不等于官方类型编译、Loader/Web 启动或人工验收通过；已验收 pin 保持不变。
-- R2：新版 Harness 正式兼容性验收与只读 reader 适配；R3：证据新鲜度和检索评测；R4：可选 LSP 符号级分析；R5：旧生命周期模块分离及产品打磨。
+- R2 优先完成免删除产物验证设计与独立标注的评测语料，再推进 exact candidate 验收及只读 reader 适配；R3：证据新鲜度和检索评测；R4：可选 LSP 符号级分析；R5：旧生命周期模块分离及产品打磨。
+- 外部评审采纳结果已写入重规划：允许提前评估独立的 Git adapter/无状态 helper 拆分；动态工具可见性列入 R3/R4 观察项；正式 supported pin 默认等待 stable 并通过完整验收，alpha 适配及独立质量工作继续推进。README public/private 问题已在 `71e3231` 解决。
+- 免删除构建尚未实施，也不能自动解锁实际删除语义测试；OpenSpec CLI 缺失是独立阻塞。
 - 本轮详细检查结果与限制记录在 [OpenSpec tasks](../openspec/changes/repository-intelligence-foundation/tasks.md)；未推送、未发布。
 
 ## 不属于 v1

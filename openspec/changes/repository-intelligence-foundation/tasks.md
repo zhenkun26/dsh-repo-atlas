@@ -16,7 +16,7 @@
 
 - [x] 3.1 Record final local suite, typecheck, lint, compile/import, and diff checks.
 - [ ] 3.2 Validate OpenSpec with the project CLI if available.
-- [ ] 3.3 Run current-Harness official declarations, Loader/Web smoke, and manual interaction after the build/deletion constraint is resolved by the user.
+- [ ] 3.3 Run current-Harness official declarations, Loader/Web smoke, and manual interaction after a compliant build/verification path is established; report any remaining deletion-dependent checks separately.
 
 Items 3.2–3.3 are explicit gates, not implied passes. Full product roadmap stages
 R2–R5 are outside the completed R1 implementation. Do not archive this change or
@@ -62,3 +62,19 @@ executed cases; pattern-excluded cases do not appear in its skipped counter.
 R1 implementation is ready for review as a local increment. The new candidate
 Harness pin is **not accepted**. OpenSpec CLI validation and current-Harness
 runtime acceptance remain open; the change is not archived.
+
+
+## External-review follow-up (2026-10-04)
+
+- [x] Recheck remote HEAD/release and the upstream dynamic-tool-update contract.
+- [x] Mark the README visibility finding resolved by R1 (`71e3231`).
+- [x] Revise R2 priorities: non-deleting artifact pipeline and labelled evaluation corpus first.
+- [x] Separate semantic deletion tests, upstream build prerequisites, and missing OpenSpec CLI.
+- [x] Document stable formal-support promotion versus experimental candidate validation.
+- [x] Record conditional early adapter/helper extraction and the dynamic-tool watch list.
+
+This follow-up changes planning documents only. None of the new R2 work has run;
+the R1 verification record above remains historical evidence, not a rerun. Review
+validation: document links/consistency and `git diff --check`; no runtime tests are
+needed for these prose-only changes. No push, dependency install, or upstream
+checkout modification is part of this follow-up.
