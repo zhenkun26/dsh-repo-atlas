@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 
@@ -159,5 +159,5 @@ try {
   console.error(`FAIL: DeepSeek Harness compatibility smoke: ${error instanceof Error ? error.message : String(error)}`)
   process.exitCode = 1
 } finally {
-  if (dshHome) rmSync(dshHome, { recursive: true, force: true })
+  if (dshHome) console.log(`Artifacts retained at ${dshHome}; no cleanup performed.`)
 }

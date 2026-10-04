@@ -8,15 +8,19 @@ All notable RepoAtlas changes will be documented here. The existing `v0.1.0` tag
 
 - Session-owned `repo_atlas_search` and `repo_atlas_impact` tools expose retained redacted evidence and bounded reverse-import impact with snapshot freshness, evidence chains, and unknown coverage.
 - An October repository-intelligence plan and an exact-source review record for Harness `5badb15009ae1756c3afe0ae0cef1faafc290ccc`; current runtime compatibility is not yet validated.
+- A synthetic labelled evaluation corpus and reproducible default-budget baseline, including cycle, unresolved, unsupported, redaction, action-budget and retained-text cases; labels remain pending human review.
 
 ### Fixed
 
 - Dependency graph construction no longer selects arbitrary filename-prefix or directory-child matches; ambiguous targets remain unresolved.
 - Exported string initializers no longer become module references. Graph confidence now distinguishes compiler provenance from structural fallback observations.
 - README distinguishes the public repository from the private npm publication setting.
+- Build diagnostics use stderr so the prepack hook preserves machine-readable `npm pack --json` output.
 
 ### Changed
 
+- Builds compile into fresh retained package trees. Root dist projection rejects stale files and symlinks; isolated mode leaves root dist untouched. Artifact verification packs only fresh outputs and installs into a new offline consumer without lifecycle scripts.
+- Artifact, API-contract and compatibility helpers retain their scratch outputs instead of deleting directories; semantic deletion tests and upstream build restrictions remain separate gates.
 - v2.18 resolves the analysis workspace from each live Harness invocation, forwards its cancellation signal, and owns proposal state by the exact Harness session object instead of plugin mount cwd.
 - v2.19 adds an official public-API type contract at the exact Harness pin, aligns sandbox policy with `{ session, mode }`, and upgrades the manual smoke to a bounded live Web boot and loopback probe.
 - v2.20 adds deterministic ESM/declaration output, built package exports, a minimal files allowlist, and offline installed-package imports for both the root and Harness entry.

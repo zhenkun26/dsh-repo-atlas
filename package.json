@@ -58,7 +58,8 @@
     "verify:harness-compatibility": "node scripts/verify-harness-compatibility.mjs",
     "verify:release-preflight": "node scripts/verify-release-preflight.mjs",
     "validate:openspec": "openspec validate --all --strict --no-interactive",
-    "validate:openspec:change": "openspec validate --strict --no-interactive"
+    "validate:openspec:change": "openspec validate --strict --no-interactive",
+    "evaluate:repository": "node --experimental-strip-types scripts/evaluate-repository.ts"
   },
   "engines": {
     "node": ">=22"

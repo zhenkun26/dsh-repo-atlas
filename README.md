@@ -106,10 +106,17 @@ npm run typecheck
 npm run lint
 npm run build
 npm run verify:built-artifact
+npm run evaluate:repository
 ```
 
-`verify:built-artifact` creates a task-owned tarball, installs it offline into a temporary consumer, and imports `dsh-repo-atlas` and `dsh-repo-atlas/harness`. It is local artifact evidence, not npm publication.<br>
-`verify:built-artifact` 会创建 task-owned tarball，在临时 consumer 中离线安装，并 import `dsh-repo-atlas` 与 `dsh-repo-atlas/harness`。它只是本地产物证据，不代表 npm 发布。
+Builds first create a fresh package under ignored `.codex/artifacts/build-*` and retain it on success or failure. Normal build then updates root `dist/`; unexpected prior files or symlinks stop that projection. Use `npm run build -- --isolated` to build a separate package without projecting root `dist/`; its printed package path can be loaded into Harness. Artifacts are retained for inspection and require user-managed cleanup.<br>
+构建先在 ignored `.codex/artifacts/build-*` 下生成独立 package，成功或失败均保留。普通构建随后更新根目录 `dist/`；发现不属于本次构建的旧文件或符号链接时会停止写入。可用 `npm run build -- --isolated` 生成独立 package，不更新根目录 `dist/`；输出的 package 路径可以加载到 Harness。产物保留供检查，清理需由用户管理。
+
+`verify:built-artifact` packs only a fresh isolated package, installs it offline into a new consumer with lifecycle scripts disabled, and imports `dsh-repo-atlas` and `dsh-repo-atlas/harness`. It retains all outputs and provides local artifact evidence, not npm publication.<br>
+`verify:built-artifact` 仅打包新的独立 package，禁用 lifecycle scripts 后在全新 consumer 中离线安装，并 import `dsh-repo-atlas` 与 `dsh-repo-atlas/harness`。它保留全部产物，只提供本地产物证据，不代表 npm 发布。
+
+`evaluate:repository` records default-budget precision/recall and coverage using a [synthetic labelled corpus](evaluation/README.md). Low-recall results remain visible; the labels are pending human review.<br>
+`evaluate:repository` 使用[合成标注语料](evaluation/README.md)记录默认预算下的精确率、召回率和覆盖状态，保留低召回结果；标签仍待人工审阅。
 
 Maintainers can run the full repository gates with:<br>
 维护者可以运行完整仓库门禁：

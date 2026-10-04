@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 
@@ -120,5 +120,5 @@ void (null as unknown as SubprocessRuntime)
   console.error(`FAIL: Harness public API contract: ${error instanceof Error ? error.message : String(error)}`)
   process.exitCode = 1
 } finally {
-  if (contractRoot) rmSync(contractRoot, { recursive: true, force: true })
+  if (contractRoot) console.log(`Artifacts retained at ${contractRoot}; no cleanup performed.`)
 }

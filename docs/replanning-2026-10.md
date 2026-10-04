@@ -61,11 +61,10 @@ experimental Mods layer is not a reason to change RepoAtlas's native plugin surf
 
 Current compatibility status: source-reviewed only. Official declaration compilation,
 Loader activation, Web boot, and manual interaction against this revision have not
-run. The upstream root build calls `rmSync` in `scripts/build.ts`, and current
-RepoAtlas build/smoke helpers also delete outputs or temporary directories. The
-active no-filesystem-deletion instruction prevents those existing paths in this session.
-A non-deleting artifact pipeline is now the first R2 work item; its feasibility
-does not establish that all legacy tests or upstream build steps are unlocked.
+run. The upstream root build calls `rmSync` in `scripts/build.ts`. RepoAtlas's
+build/smoke helpers now retain fresh artifacts, but the active no-filesystem-deletion
+instruction still prevents the upstream path and eight deletion-bearing legacy cases.
+The completed local artifact pipeline does not establish upstream compatibility.
 Do not replace the accepted pin or relabel its historical smoke as a new pass.
 
 ## External projects and choices
@@ -115,7 +114,7 @@ and evaluation problem before repository understanding is measured.
 | Stage | Deliverable | Exit criteria | Current state |
 |---|---|---|---|
 | R1 | Extract graph construction; add `repo_atlas_search` and `repo_atlas_impact`; retain lifecycle | Resolution regressions, evidence-chain/cycle/budget tests, session isolation, cancellation, local compile/import | Implemented locally; see verification below |
-| R2 | Non-deleting validation pipeline, labelled evaluation fixtures, current Harness compatibility, and repository-reader port | Artifact freshness/isolation checks; independently labelled corpus and baseline; official declarations at candidate SHA, provider parity, fail-closed behavior, Loader/Web smoke and manual queries | Planned; source review completed, implementation gates still open |
+| R2 | Non-deleting validation pipeline, labelled evaluation fixtures, current Harness compatibility, and repository-reader port | Artifact freshness/isolation checks; independently labelled corpus and baseline; official declarations at candidate SHA, provider parity, fail-closed behavior, Loader/Web smoke and manual queries | R2a/R2b implemented locally; human label review, candidate acceptance and reader work remain open |
 | R3 | Evidence quality and incremental retrieval | Separate parse input from excerpts; content identity; ignore-rule contract; fresh/stale distinction; deterministic top-k fixtures | Planned |
 | R4 | Optional symbol-level impact using Harness LSP | Definitions/references linked to precise locations, missing language server reported, no runtime breakage claims | Planned |
 | R5 | Legacy module separation and product polish | Public lifecycle behavior unchanged, reader/graph/adapter boundaries testable, bilingual usage, clean packed consumer validation | Planned |
@@ -139,13 +138,15 @@ edge precision, labelled relevant-file recall at k=10, evidence citation validit
 unknown/partial detection, output size, bytes read, and elapsed time. Proposed exit
 targets: all fixture citations resolve within the snapshot, zero false resolved
 edges in the labelled resolver fixtures, and no cross-session evidence access.
-No speedup, recall score, or large-repository benchmark is claimed yet.
+The synthetic baseline below measures current recall; it establishes neither a
+speedup nor a real-repository benchmark. Monorepo and real-application coverage
+remain future corpus work.
 
 ## Review decisions and revised R2 order (2026-10-04)
 
-The external review is advisory. Each accepted suggestion below is a planning
-change; none claims that build tooling, new fixtures, or lifecycle extraction has
-already been implemented. Remote HEAD and the latest release were rechecked and
+The external review is advisory. This section records planning decisions; the
+subsequent R2a/R2b delivery is recorded separately below. Lifecycle extraction has
+not been implemented. Remote HEAD and the latest release were rechecked and
 still identify `5badb150...` / `dsh-v0.2.1-alpha.1`.
 
 ### R2a: Non-deleting artifact validation
@@ -233,6 +234,54 @@ Additional projects named in the review (ast-grep, tree-sitter, gitingest,
 code2prompt) remain **unreviewed suggestions** for future language/packing work.
 They are not selected dependencies or sources for current compatibility claims.
 
+## R2a/R2b implementation and measured baseline (2026-10-04)
+
+This local increment implements the validation pipeline and initial synthetic
+corpus. It does not complete R2c, provider portability, formal support promotion,
+or manual Harness acceptance. No dependency, runtime budget, pin or lifecycle
+permission changed. The clean upstream checkout and remote HEAD still agree at
+`5badb15009ae1756c3afe0ae0cef1faafc290ccc`.
+
+Builds allocate `.codex/artifacts/build-*/package/dist` and retain result records.
+Normal build preserves public root dist exports after a stale-file/symlink check;
+`--isolated` leaves root dist alone. Artifact smoke packs a fresh staging package,
+disables source lifecycle hooks and installs into a new offline consumer. Root
+projection is not atomic on I/O failure, which is reported as failed. Build logs
+use stderr so standard `npm pack --json` remains parseable. API/compatibility
+helper scratch directories are also retained; their current-upstream execution is
+not implied by this cleanup change.
+
+Labels are external to scanned roots and independent of algorithm outputs, with
+`agent-authored-synthetic-ground-truth` / `human-review-pending` provenance. The
+[baseline report](../evaluation/baselines/r1-defaults-2026-10-04.json) records source,
+input, evaluator and label hashes, parser provenance, budgets and metric definitions.
+Run it with `npm run evaluate:repository`; all reports remain in ignored
+`.codex/evaluation/run-*` directories.
+
+| Synthetic case | Edge recall | Retrieval recall | Impact recall | Observation |
+|---|---|---|---|---|
+| Cycle/re-export/test dependent | 4/4 | 4/4 | 3/3 | Full labelled coverage in this small case |
+| Unresolved aliases/missing target | N/A | 2/2 | N/A | No false resolved edge; dynamic imports remain outside scope |
+| Unsupported Python graph | N/A | 2/2 | N/A | Text retrieval works; labelled Python relation remains unsupported |
+| 72-file chain | 15/71 | 0/1 | 0/71 | Analysis exhausts its default budget before the tail target |
+| Retained-text boundary | N/A | 0/1 | N/A | Query marker beyond 8,000 retained characters is absent from search |
+| Synthetic sensitive content | N/A | 1/1 | N/A | Placeholder is redacted; sensitive path not used as evidence |
+
+Retrieval uses unique paths from the top ten evidence records, not ten distinct
+file results. Impact uses default depth 3 / limit 50 against the full labelled
+set. Empty denominators are null. All observed graph edges match the labels;
+snapshot references, redaction and expected budget statuses pass. This is a single
+macOS synthetic run; citation checks do not validate fresh line content, and timing
+does not establish stable latency or real-project performance. Keep low-recall
+results visible for R3 rather than raising budgets or rewriting labels to fit them.
+
+The selected suite passes 90 cases, including four new real-compiler artifact
+tests. Typecheck, existing lint, normal build/prepack and fresh offline imports
+pass. The eight deletion-bearing cases, missing OpenSpec CLI, current-Harness
+official build/declarations/Loader/Web, manual interaction and Windows execution
+remain separate uncompleted gates. Exact commands and retained paths are in the
+new [OpenSpec tasks](../openspec/changes/non-deleting-validation-and-evaluation/tasks.md).
+
 ## R1 usage and verification
 
 1. Call `repo_atlas_analyze` with a confirmed goal or `start: "direct"`.
@@ -245,8 +294,9 @@ filesystem or Git work, and return `snapshot-not-revalidated`. Rerun analysis af
 editing source. Impact is file-level potential impact; inspect its evidence before
 choosing edits or tests. Unsupported/unobserved paths remain unknown.
 
-Verification commands and final outcomes are recorded in the active OpenSpec
+Historical R1 verification commands and outcomes are recorded in the active OpenSpec
 [tasks](../openspec/changes/repository-intelligence-foundation/tasks.md). Full legacy
-cleanup tests, packed-artifact validation, official current-Harness compilation,
-live activation, and Windows execution remain distinct gates. R1 completion does
+cleanup tests, official current-Harness compilation, live activation, and Windows
+execution remain distinct gates; the packed-artifact gate was subsequently unlocked
+by R2a above. R1 completion does
 not claim completion of R2–R5 or a new supported Harness release.

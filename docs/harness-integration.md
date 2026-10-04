@@ -19,7 +19,7 @@ pnpm dsh web
 
 ## 公开分发边界
 
-RepoAtlas 当前从 checkout 构建后加载：先运行 `npm ci` 与 `npm run build`，再由根目录 `cordis.patch.yml` 加载 `dsh-repo-atlas/harness` 的 built export。v2.20 的 `npm run verify:built-artifact` 在 task-owned 目录中验证 `dist/` ESM/declarations、最小 files allowlist、offline tarball install，以及 plain Node root/Harness imports；tarball 不含 raw `src/`，consumer 不运行 prepare/tsx。该能力仍保持 `private:true`，不执行或暗示 npm publish。
+RepoAtlas 当前从 checkout 构建后加载：先运行 `npm ci` 与 `npm run build`，再由根目录 `cordis.patch.yml` 加载 `dsh-repo-atlas/harness` 的 built export。构建先生成新的 `.codex/artifacts/build-*/package`，再检查并更新根目录 `dist/`；旧文件或符号链接会阻止这一步。`npm run build -- --isolated` 只生成独立 package，可将打印出的 package 路径加入 Harness profile。`npm run verify:built-artifact` 仅打包新的独立 package，验证 `dist/` ESM/declarations、最小 files allowlist、offline tarball install，以及 plain Node root/Harness imports；tarball 不含 raw `src/`，consumer 禁用 lifecycle scripts。构建、tarball、consumer 与失败记录全部保留。该能力仍保持 `private:true`，不执行或暗示 npm publish。
 
 真实 Harness 兼容目标固定在 [reference/harness-compatibility.json](../reference/harness-compatibility.json)：公开仓库 `deepseek-ai/deepseek-harness` 的 `master` 分支仅作导航，`47f943859bef60e4160492346772ded9b24f765a` 才是验收 revision，配套 Node 24.x 与 pnpm 11.7.0。忽略的 `reference/deepseek-harness/` 是用户本地 checkout；只有 HEAD 与该 revision 完全一致时才可作为本地 smoke 输入，ahead/diverged checkout 必须 fail closed。
 

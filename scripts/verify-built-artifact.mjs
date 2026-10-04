@@ -1,13 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
+import { buildArtifact, filesUnder } from './build-artifact.mjs'
 
 const repoRoot = resolve(process.cwd())
 const packageFile = join(repoRoot, 'package.json')
 const manifest = JSON.parse(readFileSync(packageFile, 'utf8'))
 const bundlePatch = readFileSync(join(repoRoot, 'cordis.patch.yml'), 'utf8')
-const distRoot = join(repoRoot, 'dist')
 let tempRoot
 
 function assertCondition(condition, message) {
@@ -29,14 +28,6 @@ function run(executable, args, options = {}) {
   }
 }
 
-function filesUnder(root, relative = '') {
-  const directory = join(root, relative)
-  return readdirSync(directory).flatMap((entry) => {
-    const child = join(relative, entry)
-    return statSync(join(root, child)).isDirectory() ? filesUnder(root, child) : [child.replaceAll('\\', '/')]
-  })
-}
-
 try {
   assertCondition(manifest.name === 'dsh-repo-atlas', 'package name must use the dsh-repo-atlas public identity')
   assertCondition(manifest.private === true, 'package.json must remain private')
@@ -51,7 +42,9 @@ try {
   assertCondition(manifest.dsh?.bundle?.patch === './cordis.patch.yml', 'the dsh bundle patch declaration changed unexpectedly')
   assertCondition(JSON.stringify(manifest.files) === JSON.stringify(['dist/', 'cordis.patch.yml', 'README.md', 'LICENSE', 'NOTICE.md']), 'package files allowlist changed unexpectedly')
 
-  run('npm', ['run', 'build'])
+  const build = buildArtifact({ projectRoot: repoRoot, projectDist: false })
+  tempRoot = build.artifactRoot
+  const distRoot = join(build.packageRoot, 'dist')
   assertCondition(existsSync(join(distRoot, 'index.js')), 'build is missing dist/index.js')
   assertCondition(existsSync(join(distRoot, 'index.d.ts')), 'build is missing dist/index.d.ts')
   assertCondition(existsSync(join(distRoot, 'harness', 'plugin.js')), 'build is missing dist/harness/plugin.js')
@@ -61,9 +54,8 @@ try {
     assertCondition(!/(?:from\s+|import\s*\()['"][^'"]+\.(?:ts|tsx|mts|cts)['"]/.test(contents), `emitted JavaScript retains a TypeScript import: dist/${file}`)
   }
 
-  tempRoot = mkdtempSync(join(tmpdir(), 'repo-atlas-built-artifact-'))
   const npmEnvironment = { ...process.env, npm_config_cache: join(tempRoot, 'npm-cache') }
-  const packOutput = run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', tempRoot], { env: npmEnvironment })
+  const packOutput = run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', tempRoot], { cwd: build.packageRoot, env: npmEnvironment })
   const packResult = JSON.parse(packOutput)
   const packageFiles = packResult[0]?.files?.map((entry) => entry.path) ?? []
   for (const required of ['dist/index.js', 'dist/index.d.ts', 'dist/harness/plugin.js', 'dist/harness/plugin.d.ts', 'cordis.patch.yml', 'README.md', 'LICENSE', 'NOTICE.md']) {
@@ -73,7 +65,7 @@ try {
     assertCondition(!packageFiles.some((file) => file.startsWith(prohibited)), `packed artifact includes prohibited path ${prohibited}`)
   }
 
-  const tarballName = readdirSync(tempRoot).find((entry) => entry.endsWith('.tgz'))
+  const tarballName = packResult[0]?.filename
   assertCondition(tarballName, 'npm pack did not create a tarball')
   const tarball = join(tempRoot, tarballName)
   const consumer = join(tempRoot, 'consumer')
@@ -94,6 +86,7 @@ try {
     harness.apply({ tools: { register: tool => tools.push(tool) } })
     if (!tools.some(tool => tool.name === 'repo_atlas_analyze')) throw new Error('built analysis tool did not register')
     if (!tools.some(tool => tool.name === 'repo_atlas_change_proposal')) throw new Error('built proposal tool did not register')
+    if (!tools.some(tool => tool.name === 'repo_atlas_search') || !tools.some(tool => tool.name === 'repo_atlas_impact')) throw new Error('built intelligence tools did not register')
   `], { cwd: consumer, env: npmEnvironment })
 
   console.log(`PASS: built artifact offline install/import smoke (${basename(tarball)}).`)
@@ -101,5 +94,5 @@ try {
   console.error(`FAIL: built artifact smoke: ${error instanceof Error ? error.message : String(error)}`)
   process.exitCode = 1
 } finally {
-  if (tempRoot) rmSync(tempRoot, { recursive: true, force: true })
+  if (tempRoot) console.log(`Artifacts retained at ${tempRoot}; no cleanup performed.`)
 }

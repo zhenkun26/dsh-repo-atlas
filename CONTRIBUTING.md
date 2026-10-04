@@ -13,6 +13,7 @@ Thanks for helping improve RepoAtlas. The project is a security-bounded DeepSeek
   npm run lint
   npm run verify:built-artifact
   npm run typecheck
+  npm run evaluate:repository
   npm run validate:openspec
   git diff --check
   ```
@@ -22,6 +23,18 @@ Thanks for helping improve RepoAtlas. The project is a security-bounded DeepSeek
   ```bash
   npx --yes @fission-ai/openspec@1.7.0 validate --all --strict --no-interactive
   ```
+
+Build and artifact smoke outputs remain under ignored `.codex/artifacts/`; the
+API/compatibility helpers also retain their printed scratch directories. A normal
+build rejects stale or foreign dist files instead of deleting them. Use
+`npm run build -- --isolated` when root dist must remain untouched.
+
+Repository-intelligence changes should rerun the [labelled corpus](evaluation/README.md)
+and explain recall changes. Preserve independent labels and disclose pending human
+review, unsupported coverage, and platform limits. A successful evaluation process
+does not imply perfect recall. When filesystem deletion is prohibited, the eight
+legacy cases identified in [the R1 verification record](openspec/changes/repository-intelligence-foundation/tasks.md)
+must remain unexecuted; the selected suite is not a full-suite pass.
 
 ## Change boundaries
 
