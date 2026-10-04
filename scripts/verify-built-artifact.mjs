@@ -81,12 +81,16 @@ try {
     const root = await import('dsh-repo-atlas')
     const harness = await import('dsh-repo-atlas/harness')
     if (typeof root.analyzeRepository !== 'function') throw new Error('root export missing analyzeRepository')
+    if (typeof root.LocalRepositoryReader !== 'function') throw new Error('root export missing repository reader')
     if (harness.name !== 'dsh-repo-atlas' || typeof harness.apply !== 'function') throw new Error('Harness export shape is invalid')
     const tools = []
     harness.apply({ tools: { register: tool => tools.push(tool) } })
     if (!tools.some(tool => tool.name === 'repo_atlas_analyze')) throw new Error('built analysis tool did not register')
     if (!tools.some(tool => tool.name === 'repo_atlas_change_proposal')) throw new Error('built proposal tool did not register')
     if (!tools.some(tool => tool.name === 'repo_atlas_search') || !tools.some(tool => tool.name === 'repo_atlas_impact')) throw new Error('built intelligence tools did not register')
+    if (tools.some(tool => tool.name === 'repo_atlas_symbols')) throw new Error('symbols must remain opt-in')
+    harness.apply({ tools: { register: tool => tools.push(tool) } }, { symbols: { enabled: true } })
+    if (!tools.some(tool => tool.name === 'repo_atlas_symbols')) throw new Error('built symbol tool did not register when enabled')
   `], { cwd: consumer, env: npmEnvironment })
 
   console.log(`PASS: built artifact offline install/import smoke (${basename(tarball)}).`)

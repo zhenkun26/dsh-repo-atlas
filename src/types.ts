@@ -34,6 +34,8 @@ export interface RepoAtlasConfig {
   maxAstTokensPerFile: number
   maxAstObservationsPerFile: number
   maxAstObservationTextBytes: number
+  cacheValidation: 'metadata' | 'content'
+  respectGitIgnore: boolean
   controlledActions: ControlledActionsConfig
 }
 
@@ -125,25 +127,36 @@ export interface AstParseResult extends AstFileAnalysis {
   observations: AstObservation[]
 }
 
-export const EVIDENCE_CACHE_SCHEMA_VERSION = 2 as const
+export const EVIDENCE_CACHE_SCHEMA_VERSION = 3 as const
 
 export interface EvidenceFingerprint {
   relativePath: string
   sizeBytes: number
   mtimeMs: number
   ctimeMs: number
+  version?: string
 }
 
 export interface EvidenceCacheEntry {
   fingerprint: EvidenceFingerprint
   coverage: string[]
   evidence: Evidence[]
+  sourceMaterial?: { text: string; evidenceId: string; redactedContentSha256: string }
+}
+
+export interface SourceSnapshot {
+  text: string
+  evidenceId: string
+  redactedContentSha256: string
+  validation: 'read-and-version-checked' | 'metadata-reused' | 'not-revalidated'
 }
 
 export interface EvidenceCache {
   schemaVersion: typeof EVIDENCE_CACHE_SCHEMA_VERSION
   workspaceRoot: string
   policyFingerprint: string
+  readerIdentity: string
+  ignoreFingerprint: string
   entries: EvidenceCacheEntry[]
 }
 
@@ -185,6 +198,7 @@ export interface ScanResult {
   skipped: Array<{ path: string; reason: string }>
   failures: Array<{ path: string; reason: string }>
   audits: AuditEvent[]
+  ignorePolicy?: { mode: 'disabled' | 'root-positive-patterns'; fingerprint: string; unsupportedRuleCount: number; nestedPoliciesObserved: number }
   budget: {
     candidateFiles: number
     readBytes: number
@@ -243,6 +257,8 @@ export interface AnalysisSession {
   interrupted: boolean
   evidenceCache?: EvidenceCache
   incrementalSummary?: IncrementalEvidenceSummary
+  reader?: { identity: string; kind: 'local' | 'harness'; hostBacked: boolean }
+  sourceSnapshots?: ReadonlyMap<string, SourceSnapshot>
 }
 
 export interface AtlasData {

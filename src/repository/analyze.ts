@@ -1,14 +1,16 @@
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { buildDependencyGraph } from './dependency-graph.ts'
 import { createAnalysisPlan } from './plan.ts'
 import { RepositoryScanner } from './scanner.ts'
+import type { RepositoryReader } from './reader.ts'
 import { createConfig } from '../config.ts'
 import { createEvidence, addConclusion } from '../evidence.ts'
 import { isAstSupportedPath } from './ast-parser.ts'
 import {
   createEvidenceCache,
   getCompatibleEvidenceCache,
+  hasValidSourceMaterial,
   isPathCoveredByScope,
   replaceEvidenceForPaths,
   selectReusableEvidence,
@@ -26,15 +28,16 @@ import type {
   RepoAtlasConfig,
   ReActActionRecord,
   ScannedFile,
+  SourceSnapshot,
 } from '../types.ts'
 
 const CONFIG_PATHS = ['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod', 'README.md', 'tsconfig.json', 'vite.config.ts', 'vitest.config.ts', 'jest.config.js']
 
-export async function analyzeRepository(goal: GoalSpec, workspaceRoot: string, overrides: Partial<Omit<RepoAtlasConfig, 'workspaceRoot'>> = {}, signal?: AbortSignal, reusedEvidence: Evidence[] = [], previousCache?: EvidenceCache): Promise<AnalysisSession> {
+export async function analyzeRepository(goal: GoalSpec, workspaceRoot: string, overrides: Partial<Omit<RepoAtlasConfig, 'workspaceRoot'>> = {}, signal?: AbortSignal, reusedEvidence: Evidence[] = [], previousCache?: EvidenceCache, reader?: RepositoryReader): Promise<AnalysisSession> {
   if (!goal.confirmed) throw new Error('GoalSpec must be confirmed before deep analysis')
   const scope = goal.scope?.length ? goal.scope : overrides.scope
   const config = createConfig(workspaceRoot, { ...overrides, scope })
-  const scanner = new RepositoryScanner(config.workspaceRoot, config)
+  const scanner = new RepositoryScanner(config.workspaceRoot, config, reader)
   const plan = createAnalysisPlan(goal)
   const sessionId = `session-${randomUUID()}`
   let evidence: Evidence[] = []
@@ -44,13 +47,18 @@ export async function analyzeRepository(goal: GoalSpec, workspaceRoot: string, o
   const astResults: AstFileAnalysis[] = []
 
   const scanBefore = await scanner.discover(signal)
-  addAction(actions, 'list', '.', '列举 workspace 文件', scanBefore.files.length ? `发现 ${scanBefore.files.length} 个候选文件` : '未发现可分析文件', [], scanBefore.budget.exhausted ? 'budget-exhausted' : 'confirmed')
-  const compatibleCache = getCompatibleEvidenceCache(previousCache, config)
+  const discoveryStatus = scanBefore.budget.exhausted ? 'budget-exhausted' : signal?.aborted ? 'interrupted' : scanBefore.failures.length || scanBefore.ignorePolicy?.unsupportedRuleCount || scanBefore.ignorePolicy?.nestedPoliciesObserved ? 'unconfirmed' : 'confirmed'
+  addAction(actions, 'list', '.', '列举 workspace 文件', scanBefore.files.length ? `发现 ${scanBefore.files.length} 个候选文件` : '未发现可分析文件', [], discoveryStatus)
+  const compatibleCache = getCompatibleEvidenceCache(previousCache, config, scanner.reader.identity, scanBefore.ignorePolicy?.fingerprint)
   const incremental = compatibleCache !== undefined
   const selection = selectReusableEvidence(scanBefore.files, previousCache, config, {
-    discoveryComplete: !scanBefore.budget.exhausted && !signal?.aborted,
+    discoveryComplete: !scanBefore.budget.exhausted && !scanBefore.failures.length && !scanBefore.ignorePolicy?.unsupportedRuleCount && !scanBefore.ignorePolicy?.nestedPoliciesObserved && !signal?.aborted,
+    readerIdentity: scanner.reader.identity,
+    forceScopeReread: config.cacheValidation === 'content' ? true : undefined,
+    requireSourceMaterial: true,
+    ignoreFingerprint: scanBefore.ignorePolicy?.fingerprint,
   })
-  evidence.push(createEvidence('workspace', '.', `发现 ${scanBefore.files.length} 个候选文件；跳过 ${scanBefore.skipped.length} 个路径`, scanBefore.budget.exhausted ? 'budget-exhausted' : 'confirmed'))
+  evidence.push(createEvidence('workspace', '.', `发现 ${scanBefore.files.length} 个候选文件；跳过 ${scanBefore.skipped.length} 个路径`, discoveryStatus))
   evidence.push(...(incremental ? selection.evidence : previousCache ? [] : reusedEvidence))
   evidence = dedupeEvidence(evidence)
 
@@ -61,7 +69,10 @@ export async function analyzeRepository(goal: GoalSpec, workspaceRoot: string, o
   const readTargets = incremental
     ? uniquePaths([...targetPaths, ...selection.rereadPaths].filter((target) => !selection.reusedPaths.includes(target)))
     : [...targetPaths]
-  const textByPath = evidenceTextMap(evidence)
+  const textByPath = new Map<string, string>()
+  for (const entry of compatibleCache?.entries ?? []) {
+    if (selection.reusedPaths.includes(entry.fingerprint.relativePath) && hasValidSourceMaterial(entry)) textByPath.set(entry.fingerprint.relativePath, entry.sourceMaterial!.text)
+  }
   const searchTextByPath = new Map(textByPath)
   const freshReadPaths: string[] = []
   const readResults: Array<{ path: string; status: string }> = []
@@ -198,9 +209,11 @@ export async function analyzeRepository(goal: GoalSpec, workspaceRoot: string, o
   const scan = scanner.snapshot()
   if (scan.budget.exhausted) addConclusion(conclusions, '分析触及资源预算，以上结果是部分结果。', 'budget-exhausted', [evidence[0]?.evidenceId].filter(Boolean) as string[])
   if (interrupted) addConclusion(conclusions, '用户中断了分析，以上结果保留已完成部分。', 'interrupted', [])
-  const summary = createIncrementalSummary(incremental, selection, freshReadPaths, readResults, readTargets.slice(freshReadPaths.length))
-  const evidenceCache = buildEvidenceCache(config, scan.files, evidence, compatibleCache, selection, freshReadPaths)
-  return { sessionId, workspaceRoot: config.workspaceRoot, goal, plan, scan, evidence, conclusions, actions, edges, project, interrupted, ast: astResults, evidenceCache, incrementalSummary: summary }
+  const summary = createIncrementalSummary(incremental, selection, freshReadPaths, readResults, readTargets.filter(target => !freshReadPaths.includes(target)))
+  const sourceSnapshots = createSourceSnapshots(textByPath, evidence, freshReadPaths, selection.uncoveredPaths, config.maxTotalBytes)
+  const evidenceCache = buildEvidenceCache(config, scan.files, evidence, compatibleCache, selection, freshReadPaths, scanner.reader.identity, sourceSnapshots, scan.ignorePolicy?.fingerprint ?? '')
+  return { sessionId, workspaceRoot: config.workspaceRoot, goal, plan, scan, evidence, conclusions, actions, edges, project, interrupted, ast: astResults, evidenceCache, incrementalSummary: summary,
+    reader: { identity: scanner.reader.identity, kind: scanner.reader.kind, hostBacked: scanner.reader.hostBacked }, sourceSnapshots }
 }
 
 async function parseConfigs(scanner: RepositoryScanner, paths: string[], signal?: AbortSignal, providedText?: ReadonlyMap<string, string>): Promise<Array<{ path: string; values: Record<string, unknown> }>> {
@@ -223,12 +236,18 @@ function dedupeEvidence(evidence: readonly Evidence[]): Evidence[] {
   return [...new Map(evidence.map((item) => [item.evidenceId, item])).values()]
 }
 
-function evidenceTextMap(evidence: readonly Evidence[]): Map<string, string> {
-  const text = new Map<string, string>()
-  for (const item of evidence) {
-    if (item.locator === '全文（已脱敏）') text.set(item.sourcePath, item.observation)
+function createSourceSnapshots(textByPath: ReadonlyMap<string, string>, evidence: readonly Evidence[], freshReadPaths: readonly string[], uncoveredPaths: readonly string[], maxBytes: number): Map<string, SourceSnapshot> {
+  const result = new Map<string, SourceSnapshot>()
+  let retainedBytes = 0
+  for (const [sourcePath, text] of textByPath) {
+    const item = evidence.find(item => item.sourcePath === sourcePath && item.locator === '全文（已脱敏）' && item.status === 'confirmed')
+    const bytes = Buffer.byteLength(text)
+    if (!item || retainedBytes + bytes > maxBytes) continue
+    retainedBytes += bytes
+    result.set(sourcePath, { text, evidenceId: item.evidenceId, redactedContentSha256: createHash('sha256').update(text).digest('hex'),
+      validation: uncoveredPaths.includes(sourcePath) ? 'not-revalidated' : freshReadPaths.includes(sourcePath) ? 'read-and-version-checked' : 'metadata-reused' })
   }
-  return text
+  return result
 }
 
 function createIncrementalSummary(
@@ -260,8 +279,11 @@ function buildEvidenceCache(
   compatibleCache: EvidenceCache | undefined,
   selection: ReturnType<typeof selectReusableEvidence>,
   freshReadPaths: readonly string[],
+  readerIdentity: string,
+  sourceSnapshots: ReadonlyMap<string, SourceSnapshot>,
+  ignoreFingerprint: string,
 ): EvidenceCache {
-  const entries = new Map<string, EvidenceCacheEntry>(compatibleCache?.entries.map((entry) => [entry.fingerprint.relativePath, entry]) ?? [])
+  const entries = new Map<string, EvidenceCacheEntry>(compatibleCache?.entries.map(entry => [entry.fingerprint.relativePath, structuredClone(entry)]) ?? [])
   const replacedPaths = new Set([...selection.invalidatedPaths, ...selection.removedPaths, ...selection.rereadPaths, ...selection.newPaths, ...freshReadPaths])
   for (const relativePath of replacedPaths) entries.delete(relativePath)
   const coverage = [...(config.scope?.length ? config.scope : ['.'])]
@@ -273,9 +295,18 @@ function buildEvidenceCache(
       fingerprint: { ...file.fingerprint },
       coverage,
       evidence: fileEvidence.map((item) => ({ ...item })),
+      sourceMaterial: sourceSnapshots.has(file.relativePath) ? { ...sourceSnapshots.get(file.relativePath)! } : undefined,
     })
   }
-  return createEvidenceCache(config, [...entries.values()])
+  const boundedEntries = [...entries.values()].slice(0, config.maxCandidateFiles)
+  let retainedBytes = 0
+  for (const entry of boundedEntries) {
+    if (!entry.sourceMaterial) continue
+    const bytes = Buffer.byteLength(entry.sourceMaterial.text)
+    if (retainedBytes + bytes > config.maxTotalBytes) entry.sourceMaterial = undefined
+    else retainedBytes += bytes
+  }
+  return createEvidenceCache(config, boundedEntries, readerIdentity, ignoreFingerprint)
 }
 
 function isCacheableEvidence(item: Evidence): boolean {
@@ -300,7 +331,7 @@ function inferProject(workspaceRoot: string, files: AnalysisSession['scan']['fil
   const readingOrder = [...new Set(['README.md', ...runtimeConfig, ...entries, ...dirs.map((dir) => `${dir}/`)].filter((item) => item === 'README.md' || paths.includes(item) || item.endsWith('/')))].slice(0, 20)
   return {
     name: String(configs.find((item) => item.path === 'package.json')?.values.name ?? path.basename(workspaceRoot)),
-    summary: '基于本地静态文件和配置的只读分析摘要。',
+    summary: '基于仓库静态文件和配置的只读分析摘要。',
     techStack,
     entries,
     coreDirectories: dirs,

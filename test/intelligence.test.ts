@@ -113,3 +113,15 @@ test('Harness queries require prior analysis in the exact live session and prese
   owner.agent!.session.header!.cwd = path.dirname(root)
   assert.ok((await search.execute({ query: 'server' }, owner) as { blocked: unknown }).blocked)
 })
+
+test('retrieval favors distinct source files before repeated observations and uses deterministic ties', async () => {
+  const session = await snapshot()
+  const make = (sourcePath: string, evidenceId: string): Evidence => ({ evidenceId, sourcePath, locator: '1', observation: 'needle', status: 'confirmed', redactionState: 'clean' })
+  session.evidence = [make('src/z.ts', 'z'), make('src/a.ts', 'a2'), make('src/a.ts', 'a1')]
+  session.sourceSnapshots = new Map()
+  const found = searchEvidence(session, 'needle', 2)
+  assert.deepEqual(found.hits.map(item => item.sourcePath), ['src/a.ts', 'src/z.ts'])
+  assert.equal(found.ranking, 'lexical-with-file-diversity')
+  assert.equal(found.totalMatches, 3)
+  assert.equal(found.truncated, true)
+})

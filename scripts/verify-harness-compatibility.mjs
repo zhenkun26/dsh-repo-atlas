@@ -1,11 +1,11 @@
+import { harnessTarget } from './harness-target.mjs'
 import { execFileSync, spawn } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 
 const repoRoot = resolve(process.cwd())
 const harnessRoot = process.env.REPO_ATLAS_HARNESS_ROOT
-const manifestPath = join(repoRoot, 'reference', 'harness-compatibility.json')
 const MAX_OUTPUT_BYTES = 64 * 1024
 const STARTUP_TIMEOUT_MS = 90_000
 const SHUTDOWN_TIMEOUT_MS = 10_000
@@ -132,7 +132,7 @@ async function bootAndProbe(environment) {
 
 try {
   assertCondition(typeof harnessRoot === 'string' && isAbsolute(harnessRoot), 'REPO_ATLAS_HARNESS_ROOT must be an absolute path')
-  const compatibility = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  const compatibility = harnessTarget(repoRoot)
   assertCondition(compatibility.repository === 'https://github.com/deepseek-ai/deepseek-harness.git', 'unexpected Harness repository')
   assertCondition(compatibility.ref === 'master', 'unexpected Harness branch ref')
   assertCondition(compatibility.revision === '47f943859bef60e4160492346772ded9b24f765a', 'unexpected public Harness revision')
@@ -150,7 +150,7 @@ try {
   run('pnpm', ['dsh', 'plugin', '--profile', compatibility.profile, 'add', repoRoot], { env: environment })
   const config = run('pnpm', ['dsh', '--profile', compatibility.profile, '--dump-config'], { env: environment })
   assertCondition(config.includes('dsh-repo-atlas/harness'), 'composed web profile did not include dsh-repo-atlas/harness')
-  run('node', [join(repoRoot, 'scripts', 'verify-harness-api-contract.mjs')], { cwd: repoRoot, env: environment })
+  run('node', [join(repoRoot, 'scripts', 'verify-harness-api-contract.mjs'), ...(compatibility.candidate ? ['--candidate'] : [])], { cwd: repoRoot, env: environment })
   await bootAndProbe(environment)
 
   console.log(`PASS: DeepSeek Harness ${compatibility.revision} ${compatibility.profile} live boot smoke.`)

@@ -7,6 +7,8 @@ import { createChangeProposalTool } from './change-proposal-tool.ts'
 import { createChangeProposalVerificationRunner } from './change-proposal-verification.ts'
 import { createChangeProposalCommitAuthorizer } from './change-proposal-commit.ts'
 import { createChangeProposalLandingAuthorizer } from './change-proposal-landing.ts'
+import { createHarnessRepositoryReader, type HarnessFileSystem } from './repository-reader.ts'
+import { createSymbolTool } from './symbol-tool.ts'
 import { HarnessSessionRuntimeRegistry, type HarnessSessionRuntimeResolution } from './session-runtime.ts'
 import type { GoalSpec } from '../types.ts'
 import type { HarnessPluginContext, HarnessTool, HarnessToolExecution, RepoAtlasPluginConfig, RepoAtlasToolResult } from './public.ts'
@@ -15,11 +17,12 @@ export const name = 'dsh-repo-atlas'
 export const inject = ['tools'] as const
 
 export function apply(ctx: HarnessPluginContext, pluginConfig: RepoAtlasPluginConfig = {}): void {
+  if (pluginConfig.readerMode !== undefined && !['auto', 'local', 'harness'].includes(pluginConfig.readerMode)) throw new Error('readerMode must be auto, local or harness')
   const runtimes = new HarnessSessionRuntimeRegistry(pluginConfig)
   const resolveRuntime = runtimes.resolve.bind(runtimes)
   const commitAuthorizer = createChangeProposalCommitAuthorizer(ctx)
   const landingAuthorizer = createChangeProposalLandingAuthorizer(ctx)
-  ctx.tools.register(createRepoAtlasTool(resolveRuntime, pluginConfig))
+  ctx.tools.register(createRepoAtlasTool(resolveRuntime, pluginConfig, ctx))
   ctx.tools.register(createEvidenceSearchTool(resolveRuntime))
   ctx.tools.register(createImpactTool(resolveRuntime))
   ctx.tools.register(createChangeProposalTool(
@@ -29,12 +32,13 @@ export function apply(ctx: HarnessPluginContext, pluginConfig: RepoAtlasPluginCo
     landingAuthorizer,
   ))
   if (pluginConfig.controlledActions?.enabled === true) ctx.tools.register(createControlledActionTool(resolveRuntime, ctx))
+  if (pluginConfig.symbols?.enabled === true) ctx.tools.register(createSymbolTool(resolveRuntime, ctx, pluginConfig))
   ctx.logger?.info('RepoAtlas registered read-only analysis tool')
   ctx.logger?.info('RepoAtlas registered session-only change proposal tool')
   if (pluginConfig.controlledActions?.enabled === true) ctx.logger?.info('RepoAtlas registered controlled action tool with explicit approval')
 }
 
-export function createRepoAtlasTool(resolveRuntime: (execution: HarnessToolExecution | undefined) => HarnessSessionRuntimeResolution, overrides: RepoAtlasPluginConfig = {}): HarnessTool {
+export function createRepoAtlasTool(resolveRuntime: (execution: HarnessToolExecution | undefined) => HarnessSessionRuntimeResolution, overrides: RepoAtlasPluginConfig = {}, ctx?: HarnessPluginContext): HarnessTool {
   return {
     name: 'repo_atlas_analyze',
     description: '通过多轮 GoalSpec 澄清后，对当前 workspace 执行受预算约束的只读代码库分析并生成证据化报告。',
@@ -62,7 +66,19 @@ export function createRepoAtlasTool(resolveRuntime: (execution: HarnessToolExecu
       }
       const resolved = resolveRuntime(execution)
       if (!resolved.ok) return { policy: 'readonly', goal, blocked: { reason: resolved.reason } }
-      const session = await analyzeRepository(goal, resolved.runtime.workspaceRoot, overrides, resolved.execution.signal)
+      let reader
+      try {
+        if (overrides.readerMode !== 'local') {
+          const configured = ctx?.get?.<HarnessFileSystem>('fs', false)
+          const provider = configured ? ctx?.get?.<HarnessFileSystem>('fs', true) : undefined
+          if (configured && !provider) return { policy: 'readonly', goal, blocked: { reason: 'Configured Harness filesystem is inactive; no local fallback was attempted' } }
+          if (provider) reader = await createHarnessRepositoryReader(provider, resolved.runtime.workspaceRoot, resolved.execution.signal)
+          else if (overrides.readerMode === 'harness') return { policy: 'readonly', goal, blocked: { reason: 'Harness filesystem is unavailable' } }
+        }
+      } catch {
+        return { policy: 'readonly', goal, blocked: { reason: 'Harness repository reader initialization failed; no local fallback was attempted' } }
+      }
+      const session = await analyzeRepository(goal, resolved.runtime.workspaceRoot, overrides, resolved.execution.signal, [], resolved.runtime.analysis?.evidenceCache, reader)
       if (resolved.execution.signal.aborted) return { policy: 'readonly', goal, blocked: { reason: 'analysis was cancelled' } }
       resolved.runtime.analysis = session
       resolved.runtime.proposalManager.registerSession(session)

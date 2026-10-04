@@ -141,8 +141,8 @@ test('report export requires explicit confirmation', async () => {
   const goal = resolveStart(createGoalSpec(), 'direct')
   const session = await analyzeRepository(goal, fixture('complete-repo'))
   const report = generateReport(session)
-  const config = createConfig(fixture('complete-repo'))
-  const target = fixture('complete-repo', 'repo-atlas-output')
+  const target = await fs.mkdtemp(path.join(os.tmpdir(), 'repo-atlas-export-'))
+  const config = createConfig(target)
   try {
     const denied = await exportReportBundle(report, config, 'repo-atlas-output', false)
     assert.equal(denied.allowed, false)

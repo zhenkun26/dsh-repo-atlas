@@ -1,11 +1,11 @@
+import { harnessTarget } from './harness-target.mjs'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 
 const repoRoot = resolve(process.cwd())
 const harnessRoot = process.env.REPO_ATLAS_HARNESS_ROOT
-const manifestPath = join(repoRoot, 'reference', 'harness-compatibility.json')
 let contractRoot
 
 function assertCondition(condition, message) {
@@ -32,7 +32,7 @@ function moduleSpecifier(path) {
 
 try {
   assertCondition(typeof harnessRoot === 'string' && isAbsolute(harnessRoot), 'REPO_ATLAS_HARNESS_ROOT must be an absolute path')
-  const compatibility = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  const compatibility = harnessTarget(repoRoot)
   const revision = run('git', ['-C', harnessRoot, 'rev-parse', 'HEAD']).trim()
   assertCondition(revision === compatibility.revision, `Harness checkout is ${revision}, expected ${compatibility.revision}`)
   const trackedStatus = run('git', ['-C', harnessRoot, 'status', '--porcelain', '--untracked-files=no']).trim()
@@ -46,7 +46,18 @@ try {
   const probePath = join(contractRoot, 'contract.ts')
   const configPath = join(contractRoot, 'tsconfig.json')
 
+  const candidateImports = compatibility.candidate ? `
+import type { FileSystem } from '@deepseek-ai/dsh-fs'
+import type { LspService } from '@deepseek-ai/dsh-lsp'
+import type { HarnessFileSystem } from '${moduleSpecifier(join(repoRoot, 'dist/harness/repository-reader.js'))}'
+import type { HarnessLspService } from '${moduleSpecifier(join(repoRoot, 'dist/harness/symbol-tool.js'))}'
+` : ''
+  const candidateAssertions = compatibility.candidate ? `
+type _Fs = Assert<FileSystem extends HarnessFileSystem ? true : false>
+type _Lsp = Assert<LspService extends HarnessLspService ? true : false>
+` : ''
   writeFileSync(probePath, `
+${candidateImports}
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { ApprovalService } from '@deepseek-ai/dsh-user-approval'
@@ -61,6 +72,7 @@ import type {
 } from '${publicTypes}'
 
 type Assert<T extends true> = T
+${candidateAssertions}
 type _ToolDefinition = Assert<HarnessTool extends ToolDefinition ? true : false>
 type _Execution = Assert<ToolRunContext extends HarnessToolExecution ? true : false>
 type _Approval = Assert<ApprovalService extends HarnessApprovalService ? true : false>
@@ -101,6 +113,10 @@ void (null as unknown as SubprocessRuntime)
       exactOptionalPropertyTypes: false, noUncheckedIndexedAccess: false,
       allowImportingTsExtensions: true,
       paths: {
+        ...(compatibility.candidate ? {
+          '@deepseek-ai/dsh-fs': [join(harnessRoot, 'packages/fs/fs/lib/types/index.d.ts')],
+          '@deepseek-ai/dsh-lsp': [join(harnessRoot, 'packages/lsp/lsp/lib/types/index.d.ts')],
+        } : {}),
         '@deepseek-ai/cordis': [join(harnessRoot, 'vendor/cordis/lib/types/index.d.ts')],
         '@deepseek-ai/dsh-tools': [join(harnessRoot, 'packages/core/tools/lib/types/index.d.ts')],
         '@deepseek-ai/dsh-user-approval': [join(harnessRoot, 'packages/interaction/user-approval/lib/types/index.d.ts')],
@@ -115,6 +131,7 @@ void (null as unknown as SubprocessRuntime)
   }, null, 2)}\n`, 'utf8')
 
   run(join(repoRoot, 'node_modules', '.bin', 'tsc'), ['--project', configPath], { cwd: harnessRoot })
+  if (compatibility.candidate) process.stdout.write(run('node', [join(repoRoot, 'scripts/verify-harness-proxy-identity.mjs'), '--candidate'], { cwd: repoRoot }))
   console.log(`PASS: RepoAtlas public API contract matches DeepSeek Harness ${compatibility.revision}.`)
 } catch (error) {
   console.error(`FAIL: Harness public API contract: ${error instanceof Error ? error.message : String(error)}`)

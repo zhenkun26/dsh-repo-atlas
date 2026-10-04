@@ -1,10 +1,10 @@
-import { checkWorkspacePath } from './path-policy.ts'
+import { checkWorkspacePath, type PathCheck } from './path-policy.ts'
 import { isSensitivePath } from './content-policy.ts'
 import type { AuditEvent, PolicyDecision, RepoAtlasConfig, ToolAction } from '../types.ts'
 
 const READONLY_ACTIONS = new Set<ToolAction>(['list', 'read', 'search', 'parse-config', 'parse-ast'])
 
-export function decideAction(config: RepoAtlasConfig, action: ToolAction, requestedPath?: string, userConfirmedExport = false): PolicyDecision {
+export function decideAction(config: RepoAtlasConfig, action: ToolAction, requestedPath?: string, userConfirmedExport = false, checkPath: (root: string, requestedPath: string) => PathCheck = checkWorkspacePath): PolicyDecision {
   const auditId = `audit-${crypto.randomUUID()}`
   if (action === 'export-report' && userConfirmedExport) {
     const check = checkWorkspacePath(config.workspaceRoot, requestedPath ?? '.')
@@ -20,7 +20,7 @@ export function decideAction(config: RepoAtlasConfig, action: ToolAction, reques
     return { allowed: false, action, reason: 'v1 policy denies side effects by default', auditId, path: requestedPath }
   }
   if (!requestedPath) return { allowed: true, action, reason: 'read-only action without a path argument', auditId }
-  const check = checkWorkspacePath(config.workspaceRoot, requestedPath)
+  const check = checkPath(config.workspaceRoot, requestedPath)
   if (!check.allowed) return { allowed: false, action, reason: check.reason, path: check.absolutePath, auditId }
   const relative = check.absolutePath.slice(config.workspaceRoot.length).replace(/^[/\\]/, '')
   if (isSensitivePath(relative, config.sensitiveFilePatterns)) {

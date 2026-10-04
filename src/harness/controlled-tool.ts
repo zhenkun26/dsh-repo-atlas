@@ -30,6 +30,7 @@ export function createControlledActionTool(
       const request = actionInput(input)
       const resolved = resolveRuntime(execution)
       if (!resolved.ok) return deniedRuntimeResult(request.recipeId, resolved.reason)
+      if (resolved.runtime.analysis?.reader?.hostBacked === false) return deniedRuntimeResult(request.recipeId, 'provider evidence has no verified host mapping for controlled local checks')
       const exec = resolved.execution
       const config = resolved.runtime.config
       const goalConfirmed = hasConfirmedGoal(ctx.get?.<HarnessGoalService>('goals'), exec.agent)

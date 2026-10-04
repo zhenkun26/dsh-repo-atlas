@@ -51,3 +51,19 @@
 26. v2.22（已实现并通过 manual workflow）：修复增强 live smoke 的 pinned Harness 构建前置条件，workflow 改用官方根 `pnpm run build` 生成 host、client 与 Web frontend outputs 后再启动 `dsh web`；仍保持 `workflow_dispatch`、`contents: read`、exact pin、bounded loopback probe 与 owned-process cleanup。[run 31895791477](https://github.com/zhenkun26/dsh-repo-atlas/actions/runs/31895791477) 在 `47f943859bef60e4160492346772ded9b24f765a` 上通过。
 
 每个版本都应先更新安全边界、预算、部分失败语义和验收 fixture，再扩展工具权限。OpenSpec sync/archive、commit/push、npm publication 与实际 tag/Release 操作始终是独立的审阅边界。
+
+
+## Repository-intelligence delivery follow-up (2026-10-04)
+
+The [October plan](replanning-2026-10.md) remains the current priority authority.
+After R1 (`71e3231`) and the non-deleting artifacts/evaluation foundation
+(`b107eea`), local/Harness readers, full redacted source retention, content validation,
+root ignore-policy handling and deterministic retrieval are implemented. Optional
+LSP navigation defaults to disabled. The fixed Git adapter/stateless helpers are
+physically separated while state-machine behavior remains characterized.
+
+The exact experimental candidate's official declarations pass, including fs/LSP.
+The [integration record](../openspec/changes/repository-intelligence-integration/tasks.md)
+separates local checks from the eight deletion-bearing legacy cases, full upstream
+Loader/Web, live LSP/UI, human label review, Windows and stable promotion gates.
+No formal support pin, merge, deployment or release changes follow from these passes.

@@ -15,7 +15,7 @@
 ## 3. Verification
 
 - [x] 3.1 Record final local suite, typecheck, lint, compile/import, and diff checks.
-- [ ] 3.2 Validate OpenSpec with the project CLI if available.
+- [x] 3.2 Validate OpenSpec with the project CLI if available (1.7.0 follow-up below).
 - [ ] 3.3 Run current-Harness official declarations, Loader/Web smoke, and manual interaction after a compliant build/verification path is established; report any remaining deletion-dependent checks separately.
 
 Items 3.2–3.3 are explicit gates, not implied passes. Full product roadmap stages
@@ -78,3 +78,15 @@ the R1 verification record above remains historical evidence, not a rerun. Revie
 validation: document links/consistency and `git diff --check`; no runtime tests are
 needed for these prose-only changes. No push, dependency install, or upstream
 checkout modification is part of this follow-up.
+
+## Validation follow-up (2026-10-04)
+
+The user approved installing the documented OpenSpec CLI 1.7.0 in an isolated
+task directory with installation scripts disabled. Strict all-item validation now
+passes: 35 items including the current integration change, with telemetry disabled.
+This closes the CLI prerequisite without rewriting the earlier blocked record.
+
+The current integration independently passes official candidate declarations and
+provider/source/LSP regressions; see [its record](../repository-intelligence-integration/tasks.md).
+Historical pins and original measurements are preserved. Full deletion-bearing
+suite and upstream runtime acceptance remain open; no active change is archived.

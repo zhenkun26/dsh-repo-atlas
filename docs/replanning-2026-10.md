@@ -49,8 +49,8 @@ hashes are in [the source review record](../reference/harness-upstream-review.js
 | `packages/core/tools/src/index.ts` | Canonical output schema/render, execution signal, optional concurrency classifier | Keep native tools and JSON results; queries do not opt into parallel dispatch |
 | `packages/core/session/src/types.ts` | Header retains optional cwd and exact session identity | Keep absolute cwd validation and WeakMap ownership; do not fall back to process cwd |
 | `packages/interaction/user-approval/src/types.ts`, `packages/goal/goal/src/index.ts` | Approval outcomes and Goal service remain available | Preserve existing lifecycle authorizers; source inspection is not assignability proof |
-| `packages/fs/fs/src/index.ts`, `packages/fs/README.md` | Execution-world filesystem seam and provider separation | Plan reader adapter; current scanner remains local-only |
-| `packages/lsp/README.md` | Four read-only navigation operations, externally configured language servers | Later enrich evidence through optional `ctx.lsp`; no new language-server daemon now |
+| `packages/fs/fs/src/index.ts`, `packages/fs/README.md` | Execution-world filesystem seam and provider separation | Implemented reader port and Harness adapter; provider identity and containment regressions pass |
+| `packages/lsp/README.md` | Four read-only navigation operations, externally configured language servers | Implemented opt-in navigation through configured `ctx.lsp`; live LSP acceptance remains open |
 | `packages/session-query/`, `packages/workflow/` | Host has session retrieval and execution workflow capabilities | Focus RepoAtlas on repository evidence; avoid expanding a second workflow engine |
 
 The [latest release notes](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1)
@@ -59,13 +59,14 @@ RepoAtlas does not import invariant exports or ship per-subpath package.json fil
 These are review items, not evidence of a direct failure in this plugin. The
 experimental Mods layer is not a reason to change RepoAtlas's native plugin surface.
 
-Current compatibility status: source-reviewed only. Official declaration compilation,
-Loader activation, Web boot, and manual interaction against this revision have not
-run. The upstream root build calls `rmSync` in `scripts/build.ts`. RepoAtlas's
-build/smoke helpers now retain fresh artifacts, but the active no-filesystem-deletion
-instruction still prevents the upstream path and eight deletion-bearing legacy cases.
-The completed local artifact pipeline does not establish upstream compatibility.
-Do not replace the accepted pin or relabel its historical smoke as a new pass.
+Current compatibility status: **official candidate declarations PASS**, including
+filesystem and LSP assignability. The clean candidate was refreshed again and its
+official host TypeScript project compiled with the locked dependencies and ignored
+installation scripts. Loader activation, full Web boot and manual interaction
+against this revision remain unexecuted. The root build deletes its client record;
+the native builder and Typert bundler also contain deletion. These are blocked by
+the active no-filesystem-deletion instruction, not by the artifact pipeline.
+The historical accepted pin remains unchanged; candidate selection is explicit.
 
 ## External projects and choices
 
@@ -113,11 +114,11 @@ and evaluation problem before repository understanding is measured.
 
 | Stage | Deliverable | Exit criteria | Current state |
 |---|---|---|---|
-| R1 | Extract graph construction; add `repo_atlas_search` and `repo_atlas_impact`; retain lifecycle | Resolution regressions, evidence-chain/cycle/budget tests, session isolation, cancellation, local compile/import | Implemented locally; see verification below |
-| R2 | Non-deleting validation pipeline, labelled evaluation fixtures, current Harness compatibility, and repository-reader port | Artifact freshness/isolation checks; independently labelled corpus and baseline; official declarations at candidate SHA, provider parity, fail-closed behavior, Loader/Web smoke and manual queries | R2a/R2b implemented locally; human label review, candidate acceptance and reader work remain open |
-| R3 | Evidence quality and incremental retrieval | Separate parse input from excerpts; content identity; ignore-rule contract; fresh/stale distinction; deterministic top-k fixtures | Planned |
-| R4 | Optional symbol-level impact using Harness LSP | Definitions/references linked to precise locations, missing language server reported, no runtime breakage claims | Planned |
-| R5 | Legacy module separation and product polish | Public lifecycle behavior unchanged, reader/graph/adapter boundaries testable, bilingual usage, clean packed consumer validation | Planned |
+| R1 | Extract graph construction; add `repo_atlas_search` and `repo_atlas_impact`; retain lifecycle | Resolution regressions, evidence-chain/cycle/budget tests, session isolation, cancellation, local compile/import | Delivered in `71e3231`; original verification retained |
+| R2 | Non-deleting validation pipeline, labelled evaluation fixtures, current Harness compatibility, and repository-reader port | Artifact freshness/isolation checks; independently labelled corpus and baseline; official declarations at candidate SHA, provider parity, fail-closed behavior, Loader/Web smoke and manual queries | Artifacts/corpus delivered in `b107eea`; reader and candidate declarations implemented; label review and runtime acceptance open |
+| R3 | Evidence quality and incremental retrieval | Separate parse input from excerpts; content identity; ignore-rule contract; fresh/stale distinction; deterministic top-k fixtures | Implemented and locally verified; comparative synthetic baseline retained; human review pending |
+| R4 | Optional symbol-level impact using Harness LSP | Definitions/references linked to precise locations, missing language server reported, no runtime breakage claims | Implemented opt-in; provider regressions pass; live LSP/UI acceptance pending |
+| R5 | Legacy module separation and product polish | Public lifecycle behavior unchanged, reader/graph/adapter boundaries testable, bilingual usage, clean packed consumer validation | Physical adapter/helper extraction implemented; characterization passes; real adapter removal tests blocked |
 
 R2 must not silently turn direct local reads into remote access. Define provider
 identity, workspace mapping, cancellation, and partial reads before implementing
@@ -300,3 +301,60 @@ cleanup tests, official current-Harness compilation, live activation, and Window
 execution remain distinct gates; the packed-artifact gate was subsequently unlocked
 by R2a above. R1 completion does
 not claim completion of R2–R5 or a new supported Harness release.
+
+## R2c/R3/R4 and mechanical R5 implementation (2026-10-04)
+
+The reader now separates host lexical policy from backend canonical targets. Auto
+mode uses configured Harness fs, with no silent fallback after selection. Local
+Node reads remain explicit/offline. The exact older accepted source has `lstat`
+and bounded reads but lacks `processPathFromHostPath`; that capability is optional
+for reads and required for host Git/checks. An explicit local reader is available
+for an intentionally local workflow. Provider errors are sanitized before reporting.
+
+Root positive ignore rules are bounded to 16 KiB, 128 rules and 256 characters
+per rule. Policy reads consume existing byte/action budgets even when source scope
+is narrower. Sensitive paths and configured exclusions remain independent.
+Unsupported and nested policy coverage is explicit; matching uses memoized glob
+states instead of regex backtracking. Directory visits and listing processing are
+capped. Single-file scopes are supported without listing unrelated siblings.
+
+Source material carries redacted-content identity and an evidence reference,
+retained separately from display excerpts. Each retained representation is bounded
+by `maxTotalBytes`; display/AST metadata has its existing separate bounds. Metadata
+reuse is labelled; content mode rereads within unchanged budgets. Prior cache data
+is cloned before replacement. Deterministic lexical ranking returns distinct files
+before repeated observations. No graph ranking or budget increase is justified by
+the current six synthetic cases; the 72-file chain remains deliberately partial.
+
+Optional symbols use only configured Harness LSP. The query source is reread and
+checked against its retained redacted snapshot; redaction that changes cursor
+coordinates blocks navigation. Locations use the provider's canonical workspace
+URI and one-based UTF-16 half-open ranges. Processing is limited to 1,000 returned
+locations, configured output to 1–100, timeout to at most 15 seconds, hover input
+to 64 KiB and output to 8 KiB. External/sensitive/unobserved targets are filtered.
+Target content is not freshly validated and references do not prove runtime impact.
+
+The lifecycle manager is now 1,448 lines (baseline 2,056), with a 246-line fixed
+Git adapter, 369-line stateless helper module and 39-line error module. State and
+event ownership remain in the manager. Public adapter re-export, digests, approval
+order, fixed argv and uncertain outcomes are preserved. The sole equivalent parser
+edit changes RegExp.exec to String.match for the same nonglobal expression, keeping
+the lightweight process lint exception confined to the actual adapter.
+
+See the current [integration verification record](../openspec/changes/repository-intelligence-integration/tasks.md)
+and [R3 comparative baseline](../evaluation/baselines/r3-source-snapshots-2026-10-04.json).
+Implementation and local regression results do not close human label review,
+real-provider LSP/UI, full upstream runtime, Windows or stable promotion gates.
+
+Cordis returns a new traced service wrapper for each lookup. Reader identity uses
+its exported `cordis.original` symbol solely to bind the underlying service; all I/O
+continues through the traced wrapper. The exact candidate's official emitted
+Cordis/Cosmokit component probe passes distinct-wrapper identity, actual service
+replacement and caller-context preservation. This narrow component probe is part
+of candidate API verification and is not a packaged Loader/Web acceptance run.
+
+Read budgets conservatively charge bounded attempts even when a backend fails after
+reading. Missing stable version/time metadata blocks content reads. This prevents
+failed reads from escaping the total-byte gate. Session cwd validation retains the
+existing host-platform absolute-path requirement; opposite-platform cwd encodings
+and Windows execution have no new acceptance claim.

@@ -8,20 +8,30 @@ export interface PathCheck {
 }
 
 export function checkWorkspacePath(workspaceRoot: string, requestedPath: string): PathCheck {
+  const lexical = checkLexicalWorkspacePath(workspaceRoot, requestedPath)
+  if (!lexical.allowed) return lexical
+  const root = path.resolve(workspaceRoot)
+  const absolutePath = lexical.absolutePath
+  const rootReal = safeRealpath(root)
+  const existing = nearestExistingPath(absolutePath)
+  const existingReal = safeRealpath(existing)
+  if (!rootReal || !existingReal || !isWithin(rootReal, existingReal)) {
+    return { allowed: false, absolutePath, reason: 'path or symlink resolves outside workspace' }
+  }
+  return { allowed: true, absolutePath, reason: 'path is inside workspace' }
+}
+
+/** Lexical containment only; a provider must additionally validate canonical targets. */
+export function checkLexicalWorkspacePath(workspaceRoot: string, requestedPath: string): PathCheck {
   const root = path.resolve(workspaceRoot)
   const raw = String(requestedPath)
+  if (/[\u0000-\u001f]/.test(raw)) return { allowed: false, absolutePath: root, reason: 'control characters are not allowed in paths' }
   if (raw.split(/[\\/]/).includes('..')) {
     return { allowed: false, absolutePath: path.resolve(root, raw), reason: 'path traversal segment is not allowed' }
   }
   const absolutePath = path.resolve(root, raw)
   if (!isWithin(root, absolutePath)) {
     return { allowed: false, absolutePath, reason: 'path is outside workspace' }
-  }
-  const rootReal = safeRealpath(root)
-  const existing = nearestExistingPath(absolutePath)
-  const existingReal = safeRealpath(existing)
-  if (!rootReal || !existingReal || !isWithin(rootReal, existingReal)) {
-    return { allowed: false, absolutePath, reason: 'path or symlink resolves outside workspace' }
   }
   return { allowed: true, absolutePath, reason: 'path is inside workspace' }
 }

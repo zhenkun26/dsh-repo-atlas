@@ -4,6 +4,18 @@ All notable RepoAtlas changes will be documented here. The existing `v0.1.0` tag
 
 ## [Unreleased]
 
+- Add local/Harness read-only repository readers, provider-bound cache compatibility,
+  bounded root ignore rules, explicit incomplete discovery and host-mapping guards.
+- Retain full redacted source separately from display excerpts; add content
+  validation mode, per-source freshness and deterministic search with file diversity.
+- Add opt-in `repo_atlas_symbols` through configured Harness LSP with bounded,
+  precise UTF-16 navigation, cancellation and fail-closed source validation.
+- Extract the fixed Git adapter and stateless lifecycle helpers while preserving
+  public exports, authorization and uncertain-outcome behavior.
+- Add explicit experimental candidate manifest/API checks and manual workflow
+  selection; preserve the historical accepted pin and stable promotion gate.
+
+
 ### Added
 
 - Session-owned `repo_atlas_search` and `repo_atlas_impact` tools expose retained redacted evidence and bounded reverse-import impact with snapshot freshness, evidence chains, and unknown coverage.

@@ -20,8 +20,8 @@ for (const file of files) {
   const text = await readFile(file, 'utf8')
   const directSpawn = capabilitySpawn.test(text)
   capabilitySpawn.lastIndex = 0
-  const spawnOutsideAdapter = directSpawn && !file.endsWith('/actions/runtime.ts')
-  const fixedGitAdapter = file.endsWith('/repository/change-proposal.ts')
+  const spawnOutsideAdapter = directSpawn && !file.endsWith('/actions/runtime.ts') && !file.endsWith('/repository/git-worktree-adapter.ts')
+  const fixedGitAdapter = file.endsWith('/repository/git-worktree-adapter.ts')
   if ((forbidden.test(text) || spawnOutsideAdapter) && !file.includes('/reporting/report.ts') && !fixedGitAdapter) violations.push(file)
 }
 if (violations.length) {

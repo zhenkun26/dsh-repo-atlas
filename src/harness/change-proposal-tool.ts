@@ -45,9 +45,12 @@ export function createChangeProposalTool(
     async execute(input: unknown, execution: HarnessToolExecution) {
       const resolved = resolveRuntime(execution)
       if (!resolved.ok) return { status: 'blocked', operationStatus: 'blocked', reason: resolved.reason }
+      const request = proposalInput(input)
+      if (resolved.runtime.analysis?.reader?.hostBacked === false && !['inspect', 'list', 'history', 'inspect-recovery'].includes(request.action)) {
+        return { status: 'blocked', operationStatus: 'blocked', reason: 'local Git lifecycle requires a verified host-backed repository; provider analysis does not authorize host Git' }
+      }
       const manager = resolved.runtime.proposalManager
       const verificationRunner = createVerificationRunner(resolved.runtime)
-      const request = proposalInput(input)
       const signal = resolved.execution.signal
       if (request.action === 'list') return manager.list({ limit: request.invalidLimit ? Number.NaN : request.limit })
       if (request.action === 'history') {

@@ -57,7 +57,8 @@ for (const entry of labels.cases) {
   const impact = analyzeImpact(session, entry.impact.targets)
   const unresolved = compareSets(graph.unresolved.map(item => `${item.sourcePath}:${item.moduleSpecifier}`),
     (entry.unresolved ?? []).map(item => `${item.sourcePath}:${item.moduleSpecifier}`))
-  const redactionPassed = (entry.forbiddenEvidenceStrings ?? []).every(value => !JSON.stringify(session.evidence).includes(value))
+  const retainedEvidenceText = JSON.stringify({ evidence: session.evidence, sourceMaterial: [...(session.sourceSnapshots?.values() ?? [])] })
+  const redactionPassed = (entry.forbiddenEvidenceStrings ?? []).every(value => !retainedEvidenceText.includes(value))
   const sensitivePathsExcluded = (entry.forbiddenEvidencePaths ?? []).every(value => !session.evidence.some(item => item.sourcePath === value))
   results.push({ id: entry.id, inputSha256: fingerprint(repository), edgeMetrics, retrieval,
     impact: { ...compareSets(impact.affected.map(item => item.sourcePath), entry.impact.affectedFiles), truncated: impact.truncated,
@@ -76,7 +77,7 @@ const report = {
   schemaVersion: 1, generatedAt: new Date().toISOString(), platform: process.platform, node: process.version,
   sourceSha256: sourceFingerprint, evaluatorSha256: sha256(readFileSync(new URL(import.meta.url), 'utf8')), labelsSha256: sha256(labelsText), labelProvenance: labels.provenance,
   configuration: DEFAULT_CONFIG, metricsDefinition: {
-    retrieval: 'Unique source files projected from the existing top 10 evidence records; recall against independently authored relevant-file labels.',
+    retrieval: 'Unique source files from the top 10 ranked evidence records; current ranking prefers distinct files before repeated observations. Recall against independently authored relevant-file labels.',
     graph: 'Static file-edge precision/recall against labelled resolvable relations; unsupported relations recorded separately.',
     impact: 'Recall against full labelled affected-file set using current default depth=3 and limit=50.',
     citation: 'Reference integrity within the retained snapshot; not fresh-file or line-content verification.',

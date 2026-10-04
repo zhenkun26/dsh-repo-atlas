@@ -2,6 +2,14 @@ name: Harness compatibility
 
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: Accepted historical pin or experimental prerelease candidate
+        type: choice
+        default: accepted
+        options:
+          - accepted
+          - candidate
 
 permissions:
   contents: read
@@ -16,11 +24,23 @@ jobs:
       - name: Check out RepoAtlas
         uses: actions/checkout@v4
 
+      - name: Resolve exact Harness target
+        id: harness-target
+        env:
+          HARNESS_TARGET: ${{ inputs.target }}
+        run: |
+          node --input-type=module -e '
+            import { appendFileSync } from "node:fs";
+            import { harnessTarget } from "./scripts/harness-target.mjs";
+            const target = harnessTarget(process.cwd(), process.env.HARNESS_TARGET === "candidate" ? ["--candidate"] : []);
+            appendFileSync(process.env.GITHUB_OUTPUT, `revision=${target.revision}\n`);
+          '
+
       - name: Check out pinned DeepSeek Harness
         uses: actions/checkout@v4
         with:
           repository: deepseek-ai/deepseek-harness
-          ref: 47f943859bef60e4160492346772ded9b24f765a
+          ref: ${{ steps.harness-target.outputs.revision }}
           path: harness
           fetch-depth: 1
 
@@ -53,4 +73,10 @@ jobs:
       - name: Run RepoAtlas compatibility smoke
         env:
           REPO_ATLAS_HARNESS_ROOT: ${{ github.workspace }}/harness
-        run: node scripts/verify-harness-compatibility.mjs
+          HARNESS_TARGET: ${{ inputs.target }}
+        run: |
+          if [ "$HARNESS_TARGET" = "candidate" ]; then
+            node scripts/verify-harness-compatibility.mjs --candidate
+          else
+            node scripts/verify-harness-compatibility.mjs
+          fi

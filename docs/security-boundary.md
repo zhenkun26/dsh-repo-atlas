@@ -161,3 +161,29 @@ AST 只处理已确认 scope 内的 `.ts`、`.tsx`、`.js`、`.jsx` 脱敏文本
 ## 回滚
 
 RepoAtlas 是无迁移的插件。停用 Harness profile 或移除本项目目录即可回滚，不需要恢复数据库或远程配置。v2.11 readiness、v2.10 preflight、v2.9 guidance、v2.8 event history、v2.7 live observation、v2.6 summary listing 与 v2.5 inspection 不新增持久状态；proposal/event 与既有 patch/export/verification/commit/landing registry 随进程结束丢弃。source landing 只执行显式确认的 local fast-forward，remote 不会被工具访问或更新。孤儿 worktree、landing uncertainty、manual-review 状态或被淘汰的历史事件仍按人工检查和恢复路径处理，工具不会跨 session 自动接管、reset、删除、回滚或重建历史。
+
+## Repository reader and symbol boundaries (2026-10)
+
+The reader port is read-only and accepts repository-relative paths. Harness
+providers validate canonical containment in their own execution world; opaque
+keys and versions are never parsed as host paths. Auto selection has no local
+fallback on provider failure. Symlink components, special files and malformed or
+oversized listings fail closed. Root ignore-policy reads consume existing budgets,
+including narrow-scope analysis; unsupported policy syntax is explicit incomplete
+coverage. Host mappings are required before provider evidence can drive local Git
+or controlled checks. Local mode is an explicit choice for host-backed workflows.
+
+Full redacted source material and its SHA-256 identity stay session-only, bounded
+separately from display excerpts. Content-mode rereads and metadata reuse retain
+different freshness labels. Snapshot queries do not refresh files. Provider reads
+may use the configured host transport; RepoAtlas adds no direct network client,
+credential store or transport. This does not claim configured remote services do
+no I/O or that redaction detects every possible secret format.
+
+Optional LSP navigation delegates only to the configured host service, which owns
+its language-server processes. RepoAtlas installs or starts no server manager.
+Query source content is checked and redacted cursor bases are refused. Returned
+workspace URIs are used for relative containment; external, sensitive, unobserved
+and invalid results are filtered. Targets are path-validated, not content-refreshed.
+Timeout requests cancellation and settles the caller even if a provider ignores it;
+it does not prove that an uncooperative provider's background work has stopped.

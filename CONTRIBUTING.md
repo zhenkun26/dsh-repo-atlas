@@ -21,7 +21,7 @@ Thanks for helping improve RepoAtlas. The project is a security-bounded DeepSeek
   `npm run validate:openspec` requires the OpenSpec CLI. If it is not already available on `PATH`, use the pinned CLI explicitly:
 
   ```bash
-  npx --yes @fission-ai/openspec@1.7.0 validate --all --strict --no-interactive
+  OPENSPEC_TELEMETRY=0 DO_NOT_TRACK=1 npx --yes @fission-ai/openspec@1.7.0 validate --all --strict --no-interactive
   ```
 
 Build and artifact smoke outputs remain under ignored `.codex/artifacts/`; the
@@ -35,6 +35,14 @@ review, unsupported coverage, and platform limits. A successful evaluation proce
 does not imply perfect recall. When filesystem deletion is prohibited, the eight
 legacy cases identified in [the R1 verification record](openspec/changes/repository-intelligence-foundation/tasks.md)
 must remain unexecuted; the selected suite is not a full-suite pass.
+
+Candidate checks use `--candidate` and [reference/harness-candidate.json](reference/harness-candidate.json).
+Defaults still require the historical accepted revision; a candidate compile pass
+never promotes support or substitutes for Loader/Web, manual LSP or UI acceptance.
+The manual compatibility workflow offers separate accepted/candidate targets.
+Audit the exact upstream build for deletion before running it under a no-deletion
+instruction. Official host TypeScript compilation can establish declaration evidence
+without invoking the deleting root/bundler/native wrappers.
 
 ## Change boundaries
 

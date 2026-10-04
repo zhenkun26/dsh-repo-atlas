@@ -8,6 +8,9 @@ export const DEFAULT_EXCLUDE_DIRS = [
   'build',
   'coverage',
   '.cache',
+  '.codex',
+  '.dsh',
+  '.pnpm-store',
   '.venv',
   'venv',
 ]
@@ -33,6 +36,8 @@ export const DEFAULT_CONFIG: Omit<RepoAtlasConfig, 'workspaceRoot'> = {
   maxAstTokensPerFile: 12_000,
   maxAstObservationsPerFile: 100,
   maxAstObservationTextBytes: 240,
+  cacheValidation: 'metadata',
+  respectGitIgnore: true,
   controlledActions: {
     enabled: false,
     recipes: [],
@@ -40,6 +45,8 @@ export const DEFAULT_CONFIG: Omit<RepoAtlasConfig, 'workspaceRoot'> = {
 }
 
 export function createConfig(workspaceRoot: string, overrides: Partial<Omit<RepoAtlasConfig, 'workspaceRoot'>> = {}): RepoAtlasConfig {
+  if (overrides.cacheValidation !== undefined && !['metadata', 'content'].includes(overrides.cacheValidation)) throw new Error('cacheValidation must be metadata or content')
+  if (overrides.respectGitIgnore !== undefined && typeof overrides.respectGitIgnore !== 'boolean') throw new Error('respectGitIgnore must be boolean')
   return {
     workspaceRoot: path.resolve(workspaceRoot),
     scope: overrides.scope?.length ? [...overrides.scope] : undefined,
@@ -53,6 +60,8 @@ export function createConfig(workspaceRoot: string, overrides: Partial<Omit<Repo
     maxAstTokensPerFile: positiveInteger(overrides.maxAstTokensPerFile ?? DEFAULT_CONFIG.maxAstTokensPerFile, 'maxAstTokensPerFile'),
     maxAstObservationsPerFile: positiveInteger(overrides.maxAstObservationsPerFile ?? DEFAULT_CONFIG.maxAstObservationsPerFile, 'maxAstObservationsPerFile'),
     maxAstObservationTextBytes: positiveInteger(overrides.maxAstObservationTextBytes ?? DEFAULT_CONFIG.maxAstObservationTextBytes, 'maxAstObservationTextBytes'),
+    cacheValidation: overrides.cacheValidation ?? DEFAULT_CONFIG.cacheValidation,
+    respectGitIgnore: overrides.respectGitIgnore ?? DEFAULT_CONFIG.respectGitIgnore,
     controlledActions: normalizeControlledActions(overrides.controlledActions ?? DEFAULT_CONFIG.controlledActions),
   }
 }

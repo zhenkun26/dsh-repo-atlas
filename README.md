@@ -66,6 +66,56 @@ The current Harness source review and implementation stages are documented in th
 not yet an accepted runtime compatibility target.<br>
 当前 Harness 源码审查和实施阶段见[十月重规划](docs/replanning-2026-10.md)。已审查的 `0.2.1-alpha.1` 源码尚未成为通过运行验收的兼容目标。
 
+## Readers, source freshness and optional symbols / 读取器、源码新鲜度与可选符号导航
+
+Analysis defaults to `readerMode: "auto"`: use the configured Harness filesystem
+when present, otherwise the local read-only reader. A selected provider failure
+blocks analysis instead of falling back. Evidence paths stay repository-relative.
+Provider evidence authorizes local Git/checks only when host mapping is explicitly
+verified; older providers without that capability remain readable. Use explicit
+`readerMode: "local"` for an intentionally local workflow.<br>
+分析默认使用 `readerMode: "auto"`：有 Harness 文件系统时使用该服务，否则使用本地只读读取器。
+选定服务失败会阻止分析，不会退回本地读取。证据保留仓库相对路径；只有明确验证宿主映射后，
+服务证据才能用于本地 Git 或检查。旧服务没有映射能力时仍可读取；有意使用本地工作流时可明确设置 `readerMode: "local"`。
+
+Full redacted source is retained separately from display excerpts within the
+20 MiB default source-material cap. Search ranks by lexical score, then prefers
+distinct files. `cacheValidation: "metadata"` permits version/metadata reuse;
+`"content"` rereads within the same budgets. Content hashes identify redacted
+snapshots, not runtime correctness. Root `.gitignore` supports a bounded positive
+pattern subset; negation, escapes, character classes, whitespace patterns and
+nested rules remain explicit incomplete coverage. Sensitive-path policy and
+configured exclusions still apply.<br>
+完整脱敏源码与展示摘要分开保存，默认材料上限为 20 MiB。搜索按词法分数排序，优先返回不同文件。
+`cacheValidation: "metadata"` 允许版本或元数据复用；`"content"` 在同样预算内重新读取。
+内容哈希标识脱敏快照，不证明运行正确性。根目录 `.gitignore` 仅支持有界正向模式；否定、转义、
+字符类、含空白模式及嵌套规则会明确标注为覆盖不完整。敏感路径规则和配置排除项仍然生效。
+
+Optional plugin configuration / 可选插件配置：
+
+```json
+{
+  "readerMode": "auto",
+  "cacheValidation": "metadata",
+  "respectGitIgnore": true,
+  "symbols": { "enabled": true, "timeoutMs": 5000, "maxResults": 50 }
+}
+```
+
+`repo_atlas_symbols` is registered only with `symbols.enabled: true`. It uses
+Harness's configured LSP and installs no server. Example input:
+`{"operation":"findReferences","sourcePath":"src/server.ts","line":3,"character":8}`.
+Supported operations are `goToDefinition`, `findReferences`, `goToImplementation`
+and `hover`. Coordinates are one-based UTF-16; returned ranges are half-open.
+The query source must match retained material and have an unredacted cursor basis.
+External, sensitive and unobserved results are filtered. Missing services, changed
+source, cancellation and timeout return unavailable. Live LSP/UI acceptance is a
+separate gate.<br>
+仅在 `symbols.enabled: true` 时注册 `repo_atlas_symbols`，使用 Harness 已配置的 LSP，不安装服务器。
+输入示例与支持操作如上；坐标为从 1 开始的 UTF-16，返回区间为左闭右开。
+查询源码须与保留材料一致，且脱敏不能改变定位坐标。外部、敏感和未观察路径会被过滤；
+缺少服务、源码变化、取消或超时会返回不可用。真实 LSP 与界面验收仍是独立门禁。
+
 ## Quick start / 快速开始
 
 ### Requirements / 环境要求

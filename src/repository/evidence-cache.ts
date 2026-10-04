@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { EVIDENCE_CACHE_SCHEMA_VERSION, type Evidence, type EvidenceCache, type EvidenceCacheEntry, type EvidenceFingerprint, type RepoAtlasConfig, type ScannedFile } from '../types.ts'
 
 export type EvidenceCacheIncompatibilityReason =
@@ -7,6 +8,8 @@ export type EvidenceCacheIncompatibilityReason =
   | 'schema-version'
   | 'workspace-root'
   | 'policy'
+  | 'reader'
+  | 'ignore-policy'
 
 export interface EvidenceCacheCompatibility {
   compatible: boolean
@@ -28,18 +31,24 @@ export interface EvidenceReuseSelectionOptions {
   discoveryComplete?: boolean
   /** A confirmed follow-up scope forces a fresh read for covered paths. */
   forceScopeReread?: boolean
+  readerIdentity?: string
+  requireSourceMaterial?: boolean
+  ignoreFingerprint?: string
 }
 
-export function createEvidenceCache(config: RepoAtlasConfig, entries: EvidenceCacheEntry[] = []): EvidenceCache {
+export function createEvidenceCache(config: RepoAtlasConfig, entries: EvidenceCacheEntry[] = [], readerIdentity = 'local-node', ignoreFingerprint = ''): EvidenceCache {
   return {
     schemaVersion: EVIDENCE_CACHE_SCHEMA_VERSION,
     workspaceRoot: path.resolve(config.workspaceRoot),
     policyFingerprint: createEvidencePolicyFingerprint(config),
+    readerIdentity,
+    ignoreFingerprint,
     entries: entries.map((entry) => ({
       ...entry,
       fingerprint: { ...entry.fingerprint },
       coverage: [...entry.coverage],
-      evidence: entry.evidence.map((item) => ({ ...item })),
+      evidence: entry.evidence.map(item => structuredClone(item)),
+      sourceMaterial: entry.sourceMaterial ? { ...entry.sourceMaterial } : undefined,
     })),
   }
 }
@@ -56,22 +65,26 @@ export function createEvidencePolicyFingerprint(config: RepoAtlasConfig): string
     maxAstTokensPerFile: config.maxAstTokensPerFile,
     maxAstObservationsPerFile: config.maxAstObservationsPerFile,
     maxAstObservationTextBytes: config.maxAstObservationTextBytes,
+    cacheValidation: config.cacheValidation,
+    respectGitIgnore: config.respectGitIgnore,
   })
 }
 
-export function checkEvidenceCacheCompatibility(cache: EvidenceCache | undefined, config: RepoAtlasConfig): EvidenceCacheCompatibility {
+export function checkEvidenceCacheCompatibility(cache: EvidenceCache | undefined, config: RepoAtlasConfig, readerIdentity = 'local-node', ignoreFingerprint = ''): EvidenceCacheCompatibility {
   if (!cache) return { compatible: false, reason: 'missing-cache' }
   if (!Array.isArray(cache.entries) || typeof cache.workspaceRoot !== 'string' || typeof cache.policyFingerprint !== 'string') {
     return { compatible: false, reason: 'malformed-cache' }
   }
   if (cache.schemaVersion !== EVIDENCE_CACHE_SCHEMA_VERSION) return { compatible: false, reason: 'schema-version' }
+  if (cache.readerIdentity !== readerIdentity) return { compatible: false, reason: 'reader' }
+  if (cache.ignoreFingerprint !== ignoreFingerprint) return { compatible: false, reason: 'ignore-policy' }
   if (path.resolve(cache.workspaceRoot) !== path.resolve(config.workspaceRoot)) return { compatible: false, reason: 'workspace-root' }
   if (cache.policyFingerprint !== createEvidencePolicyFingerprint(config)) return { compatible: false, reason: 'policy' }
   return { compatible: true }
 }
 
-export function getCompatibleEvidenceCache(cache: EvidenceCache | undefined, config: RepoAtlasConfig): EvidenceCache | undefined {
-  return checkEvidenceCacheCompatibility(cache, config).compatible ? cache : undefined
+export function getCompatibleEvidenceCache(cache: EvidenceCache | undefined, config: RepoAtlasConfig, readerIdentity = 'local-node', ignoreFingerprint = ''): EvidenceCache | undefined {
+  return checkEvidenceCacheCompatibility(cache, config, readerIdentity, ignoreFingerprint).compatible ? cache : undefined
 }
 
 export function selectReusableEvidence(
@@ -80,7 +93,7 @@ export function selectReusableEvidence(
   config: RepoAtlasConfig,
   options: EvidenceReuseSelectionOptions = {},
 ): EvidenceReuseSelection {
-  const compatibleCache = getCompatibleEvidenceCache(cache, config)
+  const compatibleCache = getCompatibleEvidenceCache(cache, config, options.readerIdentity, options.ignoreFingerprint)
   const entries = new Map(
     compatibleCache?.entries
       .filter((entry) => isUsableCacheEntry(entry))
@@ -119,12 +132,17 @@ export function selectReusableEvidence(
       rereadPaths.push(relativePath)
       continue
     }
+    if (options.requireSourceMaterial && !hasValidSourceMaterial(entry)) {
+      invalidatedPaths.push(relativePath)
+      rereadPaths.push(relativePath)
+      continue
+    }
     if (shouldForceScopeReread(entry, scope, options.forceScopeReread) && isPathCoveredByScope(relativePath, scope)) {
       rereadPaths.push(relativePath)
       continue
     }
     if (entry.evidence.length) {
-      evidence.push(...entry.evidence.map((item) => ({ ...item })))
+      evidence.push(...entry.evidence.map(item => structuredClone(item)))
     }
     reusedPaths.push(relativePath)
   }
@@ -135,13 +153,13 @@ export function selectReusableEvidence(
     if (isPathCoveredByScope(relativePath, scope)) {
       if (options.discoveryComplete !== false) removedPaths.push(relativePath)
       else {
-        evidence.push(...entry.evidence.map((item) => ({ ...item })))
+        evidence.push(...entry.evidence.map(item => structuredClone(item)))
         reusedPaths.push(relativePath)
         uncoveredPaths.push(relativePath)
       }
       continue
     }
-    evidence.push(...entry.evidence.map((item) => ({ ...item })))
+    evidence.push(...entry.evidence.map(item => structuredClone(item)))
     reusedPaths.push(relativePath)
     uncoveredPaths.push(relativePath)
   }
@@ -155,6 +173,12 @@ export function selectReusableEvidence(
     removedPaths: uniquePaths(removedPaths),
     uncoveredPaths: uniquePaths(uncoveredPaths),
   }
+}
+
+export function hasValidSourceMaterial(entry: EvidenceCacheEntry): boolean {
+  const source = entry.sourceMaterial
+  return Boolean(source && typeof source.text === 'string' && source.redactedContentSha256 === createHash('sha256').update(source.text).digest('hex') &&
+    entry.evidence.some(item => item.evidenceId === source.evidenceId && item.sourcePath === entry.fingerprint.relativePath && item.status === 'confirmed'))
 }
 
 /**
@@ -198,6 +222,7 @@ function fingerprintsEqual(left: EvidenceCacheEntry['fingerprint'], right: Scann
     && left.sizeBytes === right.sizeBytes
     && left.mtimeMs === right.mtimeMs
     && left.ctimeMs === right.ctimeMs
+    && left.version === right.version
 }
 
 function isUsableCacheEntry(entry: EvidenceCacheEntry): boolean {

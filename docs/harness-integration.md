@@ -36,3 +36,41 @@ fake-context tests 与 exact-pin API compile pass 证明不同层次的契约，
 `repo_atlas_search` 接收 query 和 1–50 的 limit；`repo_atlas_impact` 接收 1–50 个仓库相对路径、1–10 的 maxDepth 和 1–100 的 limit。返回的 freshness 为 `snapshot-not-revalidated`，不会新增文件读取、Git、审批或 subprocess。source 变化后需重新调用 analyze；有限图上的空结果不代表无影响。
 
 当前重新拉取的上游为 `5badb15009ae1756c3afe0ae0cef1faafc290ccc`，审查记录见 [harness-upstream-review.json](../reference/harness-upstream-review.json)，迁移计划见 [replanning](replanning-2026-10.md)。现有 accepted manifest 和手动 workflow pin 保留，不能把新的源码审查当作旧验收 pin 已自动升级。
+
+## Reader and symbol integration (2026-10)
+
+`readerMode` supports `auto` (default), `local` and `harness`. A selected Harness fs
+never falls back on failure. Provider identity binds cache reuse; canonical targets
+and versions remain opaque. Older filesystem providers without host mapping remain
+readable but cannot authorize host Git or controlled checks from their evidence.
+Explicit local mode retains the intentionally local lifecycle workflow.
+
+`repo_atlas_symbols` is opt-in through `symbols.enabled`. It uses the configured
+LSP query seam, caller cancellation, source-content validation, bounded results,
+one-based UTF-16 ranges and canonical execution-world URI relativization. It does
+not install servers; unavailable providers and redacted cursor bases fail closed.
+The four default tool registrations stay unchanged. Search/impact remain snapshots
+without I/O; symbols are a separate live semantic query with a freshly checked
+query source and observed-path filtering for targets.
+
+The explicit experimental [candidate manifest](../reference/harness-candidate.json)
+selects `5badb150...` only with `--candidate`:
+
+```sh
+REPO_ATLAS_HARNESS_ROOT=/absolute/path/to/deepseek-harness npm run verify:harness-api-contract -- --candidate
+REPO_ATLAS_HARNESS_ROOT=/absolute/path/to/deepseek-harness npm run verify:harness-compatibility -- --candidate
+```
+
+Official candidate declarations (including fs/LSP) pass locally. Full upstream
+build, Loader/Web smoke and live UI/LSP flow remain independent unexecuted gates.
+Do not run deletion-bearing build wrappers under an active no-deletion instruction.
+The manual workflow defaults to the historical accepted target and offers candidate
+selection; it is not dispatched by these local declaration results. Stable formal
+promotion still requires a 0.2.x stable release plus all acceptance gates.
+
+Cordis returns a new traced service wrapper for each lookup. Reader identity uses
+its exported `cordis.original` symbol solely to bind the underlying service; all I/O
+continues through the traced wrapper. The exact candidate's official emitted
+Cordis/Cosmokit component probe passes distinct-wrapper identity, actual service
+replacement and caller-context preservation. This narrow component probe is part
+of candidate API verification and is not a packaged Loader/Web acceptance run.

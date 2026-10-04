@@ -16,7 +16,7 @@
 ## 3. Validation and delivery
 
 - [x] 3.1 Record final selected suite, typecheck, lint, normal build/prepack and offline artifact smoke.
-- [ ] 3.2 Run OpenSpec CLI validation when the pinned CLI is available.
+- [x] 3.2 Run OpenSpec CLI validation when the pinned CLI is available (1.7.0 follow-up below).
 - [ ] 3.3 Current-Harness official declaration, Loader/Web and manual-query acceptance remain R2c work.
 
 No acceptance-pin promotion, upstream patch, dependency addition, runtime budget
@@ -83,3 +83,19 @@ recall, live freshness or current Harness compatibility.
 R2a/R2b implementation is complete as a local increment. The broader R2 remains
 open for label review, provider/reader work and candidate acceptance. Do not archive
 this change or promote the supported pin while the outstanding gates remain open.
+
+## Validation follow-up (2026-10-04)
+
+The user approved installing the documented OpenSpec CLI 1.7.0 in an isolated
+task directory with installation scripts disabled. Strict all-item validation now
+passes: 35 items including the current integration change, with telemetry disabled.
+This closes the CLI prerequisite without rewriting the earlier blocked record.
+
+The current integration independently passes official candidate declarations and
+provider/source/LSP regressions; see [its record](../repository-intelligence-integration/tasks.md).
+Historical pins and original measurements are preserved. Full deletion-bearing
+suite and upstream runtime acceptance remain open; no active change is archived.
+
+Delivery clarification: R2a/R2b were subsequently committed and pushed as
+`b107eea` under user authorization. The earlier NOT PERFORMED row describes the
+pre-authorization verification point; it is not the current branch-delivery state.

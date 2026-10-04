@@ -8,6 +8,7 @@ export interface EvidenceHit {
   excerpt: string
   status: AnalysisStatus
   score: number
+  sourceValidation?: 'read-and-version-checked' | 'metadata-reused' | 'not-revalidated'
 }
 
 /** Literal lexical retrieval; repository content is data, never an instruction. */
@@ -20,16 +21,28 @@ export function searchEvidence(session: AnalysisSession, query: string, limit = 
   for (const item of session.evidence) {
     if (!['confirmed', 'syntax-confirmed', 'inferred'].includes(item.status)) continue
     const source = item.sourcePath.toLowerCase()
-    const text = item.observation.toLowerCase()
+    const material = session.sourceSnapshots?.get(item.sourcePath)
+    const observation = material?.evidenceId === item.evidenceId ? material.text : item.observation
+    const text = observation.toLowerCase()
     const score = terms.reduce((total, term) => total + (source.includes(term) ? 3 : 0) + (text.includes(term) ? 1 : 0), 0)
     if (!score) continue
     const positions = terms.map(term => text.indexOf(term)).filter(position => position >= 0)
-    const start = positions.length ? Math.max(0, Math.min(...positions) - 80) : 0
+    const matchPosition = positions.length ? originalOffset(observation, text, Math.min(...positions)) : 0
+    const start = positions.length ? Math.max(0, matchPosition - 80) : 0
     hits.push({ evidenceId: item.evidenceId, sourcePath: item.sourcePath, locator: item.locator,
-      excerpt: item.observation.slice(start, start + 600), status: item.status, score })
+      excerpt: observation.slice(start, start + 600), status: item.status, score,
+      ...(material ? { sourceValidation: material.validation } : {}),
+      ...(material?.evidenceId === item.evidenceId && positions.length ? { locator: `第 ${observation.slice(0, matchPosition).split('\n').length} 行` } : {}) })
   }
-  hits.sort((a, b) => b.score - a.score || a.sourcePath.localeCompare(b.sourcePath) || a.locator.localeCompare(b.locator))
-  return { ...snapshotMetadata(session), totalMatches: hits.length, truncated: hits.length > limit, hits: hits.slice(0, limit) }
+  hits.sort((a, b) => b.score - a.score || compareText(a.sourcePath, b.sourcePath) || compareText(a.locator, b.locator))
+  const seen = new Set<string>()
+  const diverse: EvidenceHit[] = []
+  const remaining: EvidenceHit[] = []
+  for (const hit of hits) {
+    if (seen.has(hit.sourcePath)) remaining.push(hit)
+    else { diverse.push(hit); seen.add(hit.sourcePath) }
+  }
+  return { ...snapshotMetadata(session), ranking: 'lexical-with-file-diversity' as const, totalMatches: hits.length, truncated: hits.length > limit, hits: [...diverse, ...remaining].slice(0, limit) }
 }
 
 /** Reverse static imports express possible impact, never proof of runtime breakage. */
@@ -60,6 +73,7 @@ export function analyzeImpact(session: AnalysisSession, targets: string[], maxDe
     }
   }
   return { ...snapshotMetadata(session), targets: uniqueTargets, unknownTargets, affected, truncated,
+    targetCoverage: uniqueTargets.map(sourcePath => ({ sourcePath, coverage: !observed.has(sourcePath) ? 'unobserved' : session.ast?.some(item => item.relativePath === sourcePath && item.status === 'syntax-confirmed') ? 'ast-snapshot' : 'text-or-path-only' })),
     unresolvedCount: graph.unresolved.length, unresolved: graph.unresolved.slice(0, 50),
     limitations: [
       'Static file imports and re-exports only; no runtime, symbol, alias, or dynamic-import proof.',
@@ -71,6 +85,11 @@ export function analyzeImpact(session: AnalysisSession, targets: string[], maxDe
 function snapshotMetadata(session: AnalysisSession) {
   return { sessionId: session.sessionId, freshness: 'snapshot-not-revalidated' as const,
     coverage: 'bounded-analysis-snapshot' as const,
+    reader: session.reader?.kind ?? 'local',
+    retainedSourceFiles: session.sourceSnapshots?.size ?? 0,
+    discoveryIncomplete: session.scan.failures.length > 0 || Boolean(session.scan.ignorePolicy?.unsupportedRuleCount || session.scan.ignorePolicy?.nestedPoliciesObserved),
+    ignorePolicy: session.scan.ignorePolicy,
+    sourceValidation: 'per-hit; metadata reuse is not a fresh content check' as const,
     interrupted: session.interrupted, budgetExhausted: session.scan.budget.exhausted }
 }
 
@@ -82,4 +101,19 @@ function safeRelativePath(value: unknown): value is string {
 
 function boundedInteger(value: number, min: number, max: number, name: string): void {
   if (!Number.isSafeInteger(value) || value < min || value > max) throw new Error(`${name} must be an integer from ${min} to ${max}`)
+}
+
+function compareText(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0 }
+
+/** Lowercasing can expand Unicode characters; excerpt offsets belong to the original. */
+function originalOffset(original: string, folded: string, offset: number): number {
+  if (original.length === folded.length) return offset
+  let originalIndex = 0
+  let foldedIndex = 0
+  for (const character of original) {
+    foldedIndex += character.toLowerCase().length
+    if (foldedIndex > offset) return originalIndex
+    originalIndex += character.length
+  }
+  return originalIndex
 }

@@ -60,3 +60,19 @@ recall. These are known limitations to measure during R3, not failed fixture set
 循环样例的标注召回完整；72 文件链的边召回为 15/71，并报告预算耗尽，末端查询与
 影响目标的召回均为零；保留文本边界查询的召回也为零。这些是 R3 要复测的已知限制，
 不是语料准备失败。
+
+
+The [R3 source-snapshot baseline](baselines/r3-source-snapshots-2026-10-04.json)
+keeps the same independent labels and numeric budgets. Retained-text recall improves
+from 0/1 to 1/1. The 72-file chain remains at 15/71 edges, tail query 0/1 and
+impact 0/71. Search now prefers distinct files; the unique-file recall calculation
+is unchanged. The evaluator's redaction gate additionally covers retained source
+material. Source and evaluator hashes are recorded separately from the R1 run.
+`readBytes` is the conservative budget charge for bounded attempts, including
+attempts that fail after backend reading; it is not a transport-byte counter.
+
+[R3 源码快照基线](baselines/r3-source-snapshots-2026-10-04.json) 使用同一独立标签和数值预算。
+长文本召回从 0/1 提升到 1/1；72 文件链仍为 15/71 条边，末端查询 0/1，影响召回 0/71。
+搜索优先返回不同文件，去重文件召回公式保持不变。评测器新增完整保留材料的脱敏门禁，
+源码与评测器哈希与 R1 分开记录。`readBytes` 是有界读取尝试的保守预算计费，
+包括后台读取后失败的尝试，不等同于传输字节计数。
