@@ -97,6 +97,7 @@ export interface Evidence {
   redactionState: 'clean' | 'redacted' | 'not-applicable'
   evidenceKind?: 'text' | 'ast'
   astObservation?: AstObservation
+  astParser?: AstParser
 }
 
 export type AstObservationKind = 'import' | 'export' | 'declaration' | 'function' | 'class' | 'variable' | 'call'

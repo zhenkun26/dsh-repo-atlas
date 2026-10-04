@@ -1,5 +1,15 @@
 # 限制与后续路线
 
+## 2026-10 重规划与当前交付
+
+产品方向已确定为 Harness 原生的代码理解、证据检索和变更影响分析插件。
+新的优先级与验收标准见 [October replanning](replanning-2026-10.md)；下方版本记录保留为历史证据。
+
+- R1 已本地实现：独立依赖图模块、严格导入解析、parser provenance、会话内 `repo_atlas_search` 与 `repo_atlas_impact`；既有变更生命周期保留。
+- 当前上游已重新克隆并审查：`5badb15009ae1756c3afe0ae0cef1faafc290ccc`（`0.2.1-alpha.1`）。源码审查不等于官方类型编译、Loader/Web 启动或人工验收通过；已验收 pin 保持不变。
+- R2：新版 Harness 正式兼容性验收与只读 reader 适配；R3：证据新鲜度和检索评测；R4：可选 LSP 符号级分析；R5：旧生命周期模块分离及产品打磨。
+- 本轮详细检查结果与限制记录在 [OpenSpec tasks](../openspec/changes/repository-intelligence-foundation/tasks.md)；未推送、未发布。
+
 ## 不属于 v1
 
 - 受控命令执行、测试/构建运行和自动修复。

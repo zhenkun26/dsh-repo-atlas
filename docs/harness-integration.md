@@ -28,3 +28,11 @@ RepoAtlas 当前从 checkout 构建后加载：先运行 `npm ci` 与 `npm run b
 `REPO_ATLAS_HARNESS_ROOT=/absolute/path/to/deepseek-harness npm run verify:harness-compatibility` 使用固定 `pnpm` argv、`shell:false`、filtered environment 和 task-owned 临时 `DSH_HOME`。手动 workflow 必须先完成 pinned Harness 根 `pnpm run build`，不能用 host-only build 代替 Web frontend output；runner 随后验证 `plugin add`、`--dump-config`、官方 API contract，并实际启动 `dsh web --port 0`。只有观察到 post-settlement `dsh web:` loopback readiness、完成 bounded HTTP probe 并终止 owned child 后才通过。help/config/module import 单独不再算 activation evidence。对应 workflow 仍只有 `workflow_dispatch` 和 `contents: read`；默认 PR/push CI 不 clone、安装、构建或启动外部 Harness。
 
 fake-context tests 与 exact-pin API compile pass 证明不同层次的契约，但都不等价于 live Loader activation。v2.22 修复后的 [manual workflow run 31895791477](https://github.com/zhenkun26/dsh-repo-atlas/actions/runs/31895791477) 已在 exact pin 上完成 root build、official API contract、live loopback probe 与 owned-process cleanup；该运行是当前 live activation 证据，但仍不等于 npm publication、tag、GitHub Release、deployment 或额外 runtime 授权。
+
+## 2026-10 证据查询与新版上游审查
+
+默认注册四个工具：`repo_atlas_analyze`、`repo_atlas_search`、`repo_atlas_impact` 和原有 `repo_atlas_change_proposal`。两个新增查询的实现见 `src/harness/intelligence-tools.ts`；查询需要当前 exact session 已完成分析，且继续通过 cwd、AbortSignal 和配置 root 校验。
+
+`repo_atlas_search` 接收 query 和 1–50 的 limit；`repo_atlas_impact` 接收 1–50 个仓库相对路径、1–10 的 maxDepth 和 1–100 的 limit。返回的 freshness 为 `snapshot-not-revalidated`，不会新增文件读取、Git、审批或 subprocess。source 变化后需重新调用 analyze；有限图上的空结果不代表无影响。
+
+当前重新拉取的上游为 `5badb15009ae1756c3afe0ae0cef1faafc290ccc`，审查记录见 [harness-upstream-review.json](../reference/harness-upstream-review.json)，迁移计划见 [replanning](replanning-2026-10.md)。现有 accepted manifest 和手动 workflow pin 保留，不能把新的源码审查当作旧验收 pin 已自动升级。

@@ -1,6 +1,7 @@
 import { createGoalSpec, missingGoalFields, nextClarificationQuestion, resolveStart } from '../clarification/goal.ts'
 import { analyzeRepository } from '../repository/analyze.ts'
 import { generateReport } from '../reporting/report.ts'
+import { createEvidenceSearchTool, createImpactTool } from './intelligence-tools.ts'
 import { createControlledActionTool } from './controlled-tool.ts'
 import { createChangeProposalTool } from './change-proposal-tool.ts'
 import { createChangeProposalVerificationRunner } from './change-proposal-verification.ts'
@@ -19,6 +20,8 @@ export function apply(ctx: HarnessPluginContext, pluginConfig: RepoAtlasPluginCo
   const commitAuthorizer = createChangeProposalCommitAuthorizer(ctx)
   const landingAuthorizer = createChangeProposalLandingAuthorizer(ctx)
   ctx.tools.register(createRepoAtlasTool(resolveRuntime, pluginConfig))
+  ctx.tools.register(createEvidenceSearchTool(resolveRuntime))
+  ctx.tools.register(createImpactTool(resolveRuntime))
   ctx.tools.register(createChangeProposalTool(
     resolveRuntime,
     runtime => createChangeProposalVerificationRunner(runtime.config, ctx),
@@ -60,6 +63,8 @@ export function createRepoAtlasTool(resolveRuntime: (execution: HarnessToolExecu
       const resolved = resolveRuntime(execution)
       if (!resolved.ok) return { policy: 'readonly', goal, blocked: { reason: resolved.reason } }
       const session = await analyzeRepository(goal, resolved.runtime.workspaceRoot, overrides, resolved.execution.signal)
+      if (resolved.execution.signal.aborted) return { policy: 'readonly', goal, blocked: { reason: 'analysis was cancelled' } }
+      resolved.runtime.analysis = session
       resolved.runtime.proposalManager.registerSession(session)
       return { policy: 'readonly', goal, report: generateReport(session) }
     },

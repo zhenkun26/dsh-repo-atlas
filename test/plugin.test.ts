@@ -116,7 +116,7 @@ test('Harness adapter registers read-only analysis and session-only proposal too
   const workspaceRoot = path.join(process.cwd(), 'test', 'fixtures', 'complete-repo')
   const execution = harnessExecution(workspaceRoot)
   apply({ tools: { register: (tool) => registered.push(tool) }, logger: { info: (message) => logs.push(message), warn: () => undefined } }, { workspaceRoot })
-  assert.equal(registered.length, 2)
+  assert.equal(registered.length, 4)
   assert.equal(pluginName, 'dsh-repo-atlas')
   const analysisTool = registered.find((tool) => tool.name === 'repo_atlas_analyze')
   const proposalTool = registered.find((tool) => tool.name === 'repo_atlas_change_proposal')

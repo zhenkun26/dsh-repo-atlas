@@ -139,7 +139,7 @@ function parseWithCompiler(api: CompilerApi, relativePath: string, text: string,
 function compilerObservations(api: CompilerApi, sourceFile: CompilerSourceFile, node: CompilerNode, options: AstParserOptions): AstObservation[] {
   const observations: AstObservation[] = []
   if (api.isImportDeclaration(node) || api.isImportEqualsDeclaration(node)) {
-    const moduleSpecifier = stringProperty(property(node, 'moduleSpecifier'), 'text') ?? stringProperty(property(node, 'externalModuleReference'), 'text')
+    const moduleSpecifier = stringProperty(property(node, 'moduleSpecifier'), 'text') ?? stringProperty(property(property(node, 'moduleReference'), 'expression'), 'text')
     observations.push(makeCompilerObservation(sourceFile, node, 'import', moduleSpecifier ? `import from ${moduleSpecifier}` : 'import declaration', options, { moduleSpecifier }))
   } else if (api.isExportDeclaration(node) || api.isExportAssignment(node)) {
     const moduleSpecifier = stringProperty(property(node, 'moduleSpecifier'), 'text')
@@ -209,10 +209,10 @@ function parseWithBoundedStructure(relativePath: string, text: string, options: 
     const topLevel = braceDepth === 0 && parenDepth === 0 && bracketDepth === 0
     if (topLevel && token.kind === 'identifier') {
       if (token.value === 'import' && tokenized.tokens[index + 1]?.value !== '(' && tokenized.tokens[index + 1]?.value !== '.') {
-        const moduleSpecifier = findStringAfter(tokenized.tokens, index + 1)
+        const moduleSpecifier = findModuleSpecifier(tokenized.tokens, index)
         add(observation(token, 'import', moduleSpecifier ? `import from ${moduleSpecifier}` : 'import declaration', options, { moduleSpecifier }))
       } else if (token.value === 'export') {
-        const moduleSpecifier = findStringAfter(tokenized.tokens, index + 1)
+        const moduleSpecifier = findModuleSpecifier(tokenized.tokens, index)
         add(observation(token, 'export', moduleSpecifier ? `export from ${moduleSpecifier}` : 'export declaration', options, { moduleSpecifier }))
       } else if (['function', 'class', 'interface', 'type', 'enum'].includes(token.value)) {
         const name = nextIdentifier(tokenized.tokens, index + 1)
@@ -323,10 +323,15 @@ function validateBalance(tokens: readonly Token[]): string | undefined {
   return stack.length ? 'unbalanced syntax at end of file' : undefined
 }
 
-function findStringAfter(tokens: readonly Token[], start: number): string | undefined {
-  for (let index = start; index < Math.min(tokens.length, start + 80); index += 1) {
-    if (tokens[index].kind === 'string') return boundedModuleSpecifier(tokens[index].value)
-    if (tokens[index].value === ';') break
+function findModuleSpecifier(tokens: readonly Token[], start: number): string | undefined {
+  const first = tokens[start + 1]
+  if (tokens[start].value === 'import' && first?.kind === 'string') return boundedModuleSpecifier(first.value)
+  // A declaration initializer is not a re-export, even if it contains a path.
+  if (tokens[start].value === 'export' && !['*', '{', 'type'].includes(first?.value)) return undefined
+  for (let index = start + 1; index < Math.min(tokens.length - 1, start + 80); index += 1) {
+    const token = tokens[index]
+    if ([';', '=', 'const', 'let', 'var', 'function', 'class', 'import', 'export'].includes(token.value)) break
+    if (token.value === 'from' && tokens[index + 1].kind === 'string') return boundedModuleSpecifier(tokens[index + 1].value)
   }
   return undefined
 }

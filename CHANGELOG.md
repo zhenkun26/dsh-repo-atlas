@@ -4,6 +4,17 @@ All notable RepoAtlas changes will be documented here. The existing `v0.1.0` tag
 
 ## [Unreleased]
 
+### Added
+
+- Session-owned `repo_atlas_search` and `repo_atlas_impact` tools expose retained redacted evidence and bounded reverse-import impact with snapshot freshness, evidence chains, and unknown coverage.
+- An October repository-intelligence plan and an exact-source review record for Harness `5badb15009ae1756c3afe0ae0cef1faafc290ccc`; current runtime compatibility is not yet validated.
+
+### Fixed
+
+- Dependency graph construction no longer selects arbitrary filename-prefix or directory-child matches; ambiguous targets remain unresolved.
+- Exported string initializers no longer become module references. Graph confidence now distinguishes compiler provenance from structural fallback observations.
+- README distinguishes the public repository from the private npm publication setting.
+
 ### Changed
 
 - v2.18 resolves the analysis workspace from each live Harness invocation, forwards its cancellation signal, and owns proposal state by the exact Harness session object instead of plugin mount cwd.

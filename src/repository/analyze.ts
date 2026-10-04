@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { buildDependencyGraph } from './dependency-graph.ts'
 import { createAnalysisPlan } from './plan.ts'
 import { RepositoryScanner } from './scanner.ts'
 import { createConfig } from '../config.ts'
@@ -16,7 +17,6 @@ import type {
   AnalysisSession,
   AstFileAnalysis,
   AstParseResult,
-  ArchitectureEdge,
   Conclusion,
   Evidence,
   EvidenceCache,
@@ -40,7 +40,6 @@ export async function analyzeRepository(goal: GoalSpec, workspaceRoot: string, o
   let evidence: Evidence[] = []
   const actions: ReActActionRecord[] = []
   const conclusions: Conclusion[] = []
-  const edges: ArchitectureEdge[] = []
   let interrupted = false
   const astResults: AstFileAnalysis[] = []
 
@@ -169,7 +168,7 @@ export async function analyzeRepository(goal: GoalSpec, workspaceRoot: string, o
       observation.summary,
       'syntax-confirmed',
       true,
-      { evidenceKind: 'ast', astObservation: observation },
+      { evidenceKind: 'ast', astObservation: observation, astParser: parsed.parser },
     ))
     const failureEvidence = parsed.reason && parsed.status !== 'syntax-confirmed'
       ? [createEvidence(sourcePath, 'AST', parsed.reason, parsed.status, false, { evidenceKind: 'ast' })]
@@ -188,8 +187,8 @@ export async function analyzeRepository(goal: GoalSpec, workspaceRoot: string, o
   }
   evidence = dedupeEvidence(evidence)
 
+  const { edges } = buildDependencyGraph(scanBefore.files, evidence)
   if (plan.name === 'architecture') {
-    edges.push(...inferEdges(scanBefore.files, evidence))
     const syntaxEdges = edges.filter((edge) => edge.status === 'syntax-confirmed')
     const inferredEdges = edges.filter((edge) => edge.status === 'inferred')
     if (syntaxEdges.length) addConclusion(conclusions, `已由受限语法结构确认 ${syntaxEdges.length} 条模块关系；未执行代码，也未进行类型或运行时证明。`, 'syntax-confirmed', syntaxEdges.flatMap((edge) => edge.evidenceIds))
@@ -311,55 +310,8 @@ function inferProject(workspaceRoot: string, files: AnalysisSession['scan']['fil
   }
 }
 
-function inferEdges(files: AnalysisSession['scan']['files'], evidence: Evidence[]): ArchitectureEdge[] {
-  const sourceFiles = uniquePaths([
-    ...files.filter((file) => file.kind === 'text').map((file) => file.relativePath),
-    ...evidence.map((item) => item.sourcePath).filter(isRepositoryRelativePath),
-  ]).filter((file) => /\.(?:[cm]?[jt]s|tsx?|jsx?|py|go|rs)$/.test(file))
-  const edges: ArchitectureEdge[] = []
-  for (const item of evidence.filter((candidate) => candidate.evidenceKind === 'ast' && candidate.astObservation?.kind === 'import' && candidate.astObservation.moduleSpecifier)) {
-    const source = item.sourcePath
-    const imported = item.astObservation?.moduleSpecifier
-    if (!imported) continue
-    const target = resolveLocalTarget(source, imported, sourceFiles)
-    if (target) edges.push({ from: source, to: target, relation: 'imports', evidenceIds: [item.evidenceId], status: 'syntax-confirmed' })
-  }
-  for (const source of sourceFiles) {
-    const sourceEvidence = evidence.filter((item) => item.sourcePath === source && item.evidenceKind !== 'ast')
-    const observation = sourceEvidence.map((item) => item.observation).join('\n')
-    const imports = [...observation.matchAll(/(?:from|import|require\s*\(|include\s+)\s*["'`]?([@A-Za-z0-9_./-]+)/g)].map((match) => match[1])
-    for (const imported of imports.slice(0, 20)) {
-      const target = resolveLocalTarget(source, imported, sourceFiles)
-      if (!target) continue
-      edges.push({ from: source, to: target, relation: 'imports', evidenceIds: sourceEvidence.map((item) => item.evidenceId), status: 'inferred' })
-    }
-  }
-  return dedupeEdges(edges)
-}
-
 function isRepositoryRelativePath(value: string): boolean {
   return value !== 'workspace' && !value.startsWith('/') && value !== '.' && !value.split('/').includes('..')
-}
-
-function resolveLocalTarget(source: string, imported: string, files: string[]): string | undefined {
-  if (!imported.startsWith('.')) return undefined
-  const base = path.posix.normalize(path.posix.join(path.posix.dirname(source), imported))
-  return files.find((file) => file === base || file.startsWith(`${base}.`) || file.startsWith(`${base}/`))
-}
-
-function dedupeEdges(edges: ArchitectureEdge[]): ArchitectureEdge[] {
-  const merged = new Map<string, ArchitectureEdge>()
-  for (const edge of edges) {
-    const key = `${edge.from}->${edge.to}`
-    const previous = merged.get(key)
-    if (!previous) {
-      merged.set(key, { ...edge, evidenceIds: [...new Set(edge.evidenceIds)] })
-      continue
-    }
-    previous.evidenceIds = [...new Set([...previous.evidenceIds, ...edge.evidenceIds])]
-    if (edge.status === 'syntax-confirmed') previous.status = 'syntax-confirmed'
-  }
-  return [...merged.values()]
 }
 
 function addAction(actions: ReActActionRecord[], action: ReActActionRecord['action'], input: string, thought: string, observation: string, evidenceIds: string[], status: ReActActionRecord['status']): void {

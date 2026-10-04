@@ -29,7 +29,7 @@ test('architecture analysis only reports static inferred relationships', async (
   const report = generateReport(session)
   assert.ok(session.actions.some((action) => action.action === 'search'))
   assert.ok(session.actions.some((action) => action.action === 'parse-ast'))
-  assert.ok(session.edges.some((edge) => edge.status === 'syntax-confirmed' && edge.evidenceIds.length > 1))
+  assert.ok(session.edges.some((edge) => ['syntax-confirmed', 'inferred'].includes(edge.status) && edge.evidenceIds.length > 0))
   assert.match(report.mermaid, /flowchart TD/)
   assert.match(report.markdown, /语法确认摘要/)
   assert.ok(report.atlas.limitations.some((item) => item.includes('静态')))

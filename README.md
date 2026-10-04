@@ -18,6 +18,7 @@
 
 - Scans a confirmed workspace with path, content, sensitive-file, and budget limits.<br>在路径、内容、敏感文件和预算限制下扫描已确认的 workspace。
 - Produces structured evidence, Markdown reports, architecture observations, and a recommended reading order.<br>生成结构化证据、Markdown 报告、架构观察和推荐阅读顺序。
+- Searches retained evidence and traces possible file-level change impact through static imports, with explicit snapshot and coverage limits.<br>检索保留的证据，并沿静态导入关系追踪文件级潜在影响，明确标注快照与覆盖范围限制。
 - Tracks session-only proposals, patch review/verification, isolated commits, landing preflight, recovery guidance, and release preflight.<br>追踪仅限当前 session 的提案、补丁审阅/验证、隔离 commit、landing preflight、恢复建议和 release preflight。
 
 **What does it not do automatically? / 它不会自动做什么？**
@@ -44,6 +45,27 @@ The default path is read-only. It does not silently generate or apply patches, c
 The existing Harness tool names remain stable: `repo_atlas_analyze`, `repo_atlas_change_proposal`, and the opt-in `repo_atlas_controlled_action`.<br>
 现有 Harness 工具名保持稳定：`repo_atlas_analyze`、`repo_atlas_change_proposal`，以及 opt-in 的 `repo_atlas_controlled_action`。
 
+## Evidence queries / 证据查询
+
+After `repo_atlas_analyze` completes in a Harness session, use these native tools:<br>
+在 Harness 会话中完成 `repo_atlas_analyze` 后，可使用以下原生工具：
+
+| Tool / 工具 | Example input / 输入示例 | Result / 结果 |
+|---|---|---|
+| `repo_atlas_search` | `{"query":"server","limit":10}` | Ranked evidence ids, paths, locators and excerpts / 排序后的证据 ID、路径、定位和摘录 |
+| `repo_atlas_impact` | `{"targets":["src/server.ts"],"maxDepth":3,"limit":50}` | Possible dependents and evidence chains / 潜在依赖方与证据链 |
+
+Queries read the latest retained snapshot in the exact calling session. They do not
+refresh files. Rerun analysis after edits. Empty results do not prove no impact;
+aliases, dynamic imports, runtime calls, and unobserved files remain outside this
+file-level analysis.<br>
+查询只读取当前调用会话保留的最新分析快照，不刷新文件；修改后需重新分析。空结果不代表没有影响；别名、动态导入、运行时调用和未观察文件不在本轮文件级分析范围内。
+
+The current Harness source review and implementation stages are documented in the
+[October plan](docs/replanning-2026-10.md). The reviewed `0.2.1-alpha.1` source is
+not yet an accepted runtime compatibility target.<br>
+当前 Harness 源码审查和实施阶段见[十月重规划](docs/replanning-2026-10.md)。已审查的 `0.2.1-alpha.1` 源码尚未成为通过运行验收的兼容目标。
+
 ## Quick start / 快速开始
 
 ### Requirements / 环境要求
@@ -54,8 +76,8 @@ The existing Harness tool names remain stable: `repo_atlas_analyze`, `repo_atlas
 
 ### Load the plugin from a source checkout / 从源码 checkout 加载插件
 
-The project is currently source-first and private. Build the local checkout, then add it to a Harness profile. The GitHub repository is named `dsh-repo-atlas`; the product brand remains `RepoAtlas`, and the package and visible Harness bundle are named `dsh-repo-atlas` and `dsh-repo-atlas/harness`.<br>
-当前项目采用源码优先且保持 private。先构建本地 checkout，再将其添加到 Harness profile。GitHub 仓库名为 `dsh-repo-atlas`；产品品牌仍为 `RepoAtlas`，包名和 Harness 中显示的 bundle 名称分别是 `dsh-repo-atlas` 与 `dsh-repo-atlas/harness`。
+The repository is public and distribution remains source-first. `package.json` keeps `private: true` to prevent npm publication. Build the local checkout, then add it to a Harness profile. The GitHub repository is named `dsh-repo-atlas`; the product brand remains `RepoAtlas`, and the package and visible Harness bundle are named `dsh-repo-atlas` and `dsh-repo-atlas/harness`.<br>
+仓库已公开，分发仍采用源码优先；`package.json` 保留 `private: true` 以防止 npm 发布。先构建本地 checkout，再将其添加到 Harness profile。GitHub 仓库名为 `dsh-repo-atlas`；产品品牌仍为 `RepoAtlas`，包名和 Harness 中显示的 bundle 名称分别是 `dsh-repo-atlas` 与 `dsh-repo-atlas/harness`。
 
 ```bash
 git clone https://github.com/zhenkun26/dsh-repo-atlas.git
