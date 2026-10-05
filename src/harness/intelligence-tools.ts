@@ -1,3 +1,4 @@
+import { withJsonOutput } from './json-output.ts'
 import { analyzeImpact, searchEvidence } from '../repository/intelligence.ts'
 import type { AnalysisSession } from '../types.ts'
 import type { HarnessTool, HarnessToolExecution } from './public.ts'
@@ -22,7 +23,7 @@ export function createImpactTool(resolve: ResolveRuntime): HarnessTool {
 
 function createTool(resolve: ResolveRuntime, name: string, description: string, properties: Record<string, unknown>, required: string[],
   query: (session: AnalysisSession, input: Record<string, unknown>) => unknown): HarnessTool {
-  return {
+  return withJsonOutput({
     name, description, parameters: { type: 'object', properties, required, additionalProperties: false },
     output: { schema: { type: 'object' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
     async execute(input, execution) {
@@ -38,5 +39,5 @@ function createTool(resolve: ResolveRuntime, name: string, description: string, 
         return { policy: 'readonly', blocked: { reason: error instanceof Error ? error.message : 'Invalid query.' } }
       }
     },
-  }
+  })
 }

@@ -17,14 +17,15 @@
 
 - [x] 3.1 Record final selected suite, typecheck, lint, normal build/prepack and offline artifact smoke.
 - [x] 3.2 Run OpenSpec CLI validation when the pinned CLI is available (1.7.0 follow-up below).
-- [ ] 3.3 Current-Harness official declaration, Loader/Web and manual-query acceptance remain R2c work.
+- [x] 3.3 Run current-Harness official declarations, full build and Loader/Web/native tool smoke (2026-10-05 follow-up).
+- [ ] 3.4 Complete manual query/LSP/UI acceptance separately from automated runtime checks.
 
 No acceptance-pin promotion, upstream patch, dependency addition, runtime budget
 change, or lifecycle extraction is included. Eight deletion-bearing legacy cases
 remain unexecuted under the active restriction. This change remains active until
 its outstanding validation is resolved; the original R1 historical record stays intact.
 
-## Verification record (2026-10-04)
+## Historical verification record (2026-10-04)
 
 Environment: macOS, Node 24.20.0. No dependencies were added or installed in this
 increment; package exports, accepted Harness pin and runtime budgets are unchanged.
@@ -99,3 +100,14 @@ suite and upstream runtime acceptance remain open; no active change is archived.
 Delivery clarification: R2a/R2b were subsequently committed and pushed as
 `b107eea` under user authorization. The earlier NOT PERFORMED row describes the
 pre-authorization verification point; it is not the current branch-delivery state.
+
+## Runtime validation follow-up (2026-10-05)
+
+After the user authorized assessed, harmless deletion, the preserved unfiltered
+suite passes all 129 tests, including the eight previously excluded cases. The
+clean exact candidate passes its full official build, declarations, Loader,
+authenticated Web startup and eight checks through real Agents and the native tool
+registry. The latter uncovered and now verifies the lossless-JSON DTO fix. Earlier
+blocked rows remain historical; see the [current integration record](../repository-intelligence-integration/tasks.md).
+Human label/LSP/UI review, Windows execution and stable formal-support promotion
+remain separate open gates. No active change is archived.

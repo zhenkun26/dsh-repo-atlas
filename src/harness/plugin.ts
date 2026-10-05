@@ -1,3 +1,4 @@
+import { withJsonOutput } from './json-output.ts'
 import { createGoalSpec, missingGoalFields, nextClarificationQuestion, resolveStart } from '../clarification/goal.ts'
 import { analyzeRepository } from '../repository/analyze.ts'
 import { generateReport } from '../reporting/report.ts'
@@ -39,7 +40,7 @@ export function apply(ctx: HarnessPluginContext, pluginConfig: RepoAtlasPluginCo
 }
 
 export function createRepoAtlasTool(resolveRuntime: (execution: HarnessToolExecution | undefined) => HarnessSessionRuntimeResolution, overrides: RepoAtlasPluginConfig = {}, ctx?: HarnessPluginContext): HarnessTool {
-  return {
+  return withJsonOutput({
     name: 'repo_atlas_analyze',
     description: '通过多轮 GoalSpec 澄清后，对当前 workspace 执行受预算约束的只读代码库分析并生成证据化报告。',
     parameters: {
@@ -84,7 +85,7 @@ export function createRepoAtlasTool(resolveRuntime: (execution: HarnessToolExecu
       resolved.runtime.proposalManager.registerSession(session)
       return { policy: 'readonly', goal, report: generateReport(session) }
     },
-  }
+  })
 }
 
 function asInput(input: unknown): { goal: Partial<GoalSpec>; start?: 'clarify' | 'confirm' | 'direct' } {

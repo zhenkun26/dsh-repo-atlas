@@ -76,3 +76,12 @@ attempts that fail after backend reading; it is not a transport-byte counter.
 搜索优先返回不同文件，去重文件召回公式保持不变。评测器新增完整保留材料的脱敏门禁，
 源码与评测器哈希与 R1 分开记录。`readBytes` 是有界读取尝试的保守预算计费，
 包括后台读取后失败的尝试，不等同于传输字节计数。
+
+The [native-output follow-up baseline](baselines/runtime-json-output-2026-10-05.json)
+records the final source hash after the lossless-JSON adapter fix. The same six
+independent labels and numeric budgets retain the R3 recall results; earlier
+baselines are preserved. Labels still require human review.
+
+[原生输出修复基线](baselines/runtime-json-output-2026-10-05.json) 记录严格 JSON 适配修复后的
+最终源码哈希。同一组六个独立标签和数值预算保持 R3 召回结果，历史基线完整保留；
+标签仍待人工审阅。

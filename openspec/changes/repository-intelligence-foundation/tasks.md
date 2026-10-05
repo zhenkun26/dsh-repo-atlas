@@ -16,14 +16,15 @@
 
 - [x] 3.1 Record final local suite, typecheck, lint, compile/import, and diff checks.
 - [x] 3.2 Validate OpenSpec with the project CLI if available (1.7.0 follow-up below).
-- [ ] 3.3 Run current-Harness official declarations, Loader/Web smoke, and manual interaction after a compliant build/verification path is established; report any remaining deletion-dependent checks separately.
+- [x] 3.3 Run current-Harness official declarations, full build and Loader/Web/native tool smoke (2026-10-05 follow-up).
+- [ ] 3.4 Complete manual query/LSP/UI acceptance separately from automated runtime checks.
 
 Items 3.2–3.3 are explicit gates, not implied passes. Full product roadmap stages
 R2–R5 are outside the completed R1 implementation. Do not archive this change or
 promote the candidate compatibility pin while the relevant gates remain open.
 
 
-## Verification record (2026-10-04)
+## Historical verification record (2026-10-04)
 
 Environment: macOS, Node 24.20.0. Only existing locked project dependencies were
 installed, with lifecycle scripts disabled and no lockfile change.
@@ -90,3 +91,14 @@ The current integration independently passes official candidate declarations and
 provider/source/LSP regressions; see [its record](../repository-intelligence-integration/tasks.md).
 Historical pins and original measurements are preserved. Full deletion-bearing
 suite and upstream runtime acceptance remain open; no active change is archived.
+
+## Runtime validation follow-up (2026-10-05)
+
+After the user authorized assessed, harmless deletion, the preserved unfiltered
+suite passes all 129 tests, including the eight previously excluded cases. The
+clean exact candidate passes its full official build, declarations, Loader,
+authenticated Web startup and eight checks through real Agents and the native tool
+registry. The latter uncovered and now verifies the lossless-JSON DTO fix. Earlier
+blocked rows remain historical; see the [current integration record](../repository-intelligence-integration/tasks.md).
+Human label/LSP/UI review, Windows execution and stable formal-support promotion
+remain separate open gates. No active change is archived.

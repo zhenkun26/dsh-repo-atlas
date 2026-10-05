@@ -59,14 +59,14 @@ RepoAtlas does not import invariant exports or ship per-subpath package.json fil
 These are review items, not evidence of a direct failure in this plugin. The
 experimental Mods layer is not a reason to change RepoAtlas's native plugin surface.
 
-Current compatibility status: **official candidate declarations PASS**, including
-filesystem and LSP assignability. The clean candidate was refreshed again and its
-official host TypeScript project compiled with the locked dependencies and ignored
-installation scripts. Loader activation, full Web boot and manual interaction
-against this revision remain unexecuted. The root build deletes its client record;
-the native builder and Typert bundler also contain deletion. These are blocked by
-the active no-filesystem-deletion instruction, not by the artifact pipeline.
-The historical accepted pin remains unchanged; candidate selection is explicit.
+Current compatibility status (2026-10-05): **official candidate declarations,
+full upstream build, Loader, authenticated Web boot and native tool flow PASS** on
+macOS. The candidate remains clean at the reviewed exact SHA, with disabled
+installation scripts and the declared pnpm 11.7.0. The user's later authorization
+allowed assessed deletion of task-owned synthetic directories/worktrees and
+regenerable ignored build outputs. No upstream source was patched. Human LSP/UI,
+label review, Windows and stable promotion remain open. The historical accepted
+pin remains unchanged; candidate selection is explicit.
 
 ## External projects and choices
 
@@ -115,10 +115,10 @@ and evaluation problem before repository understanding is measured.
 | Stage | Deliverable | Exit criteria | Current state |
 |---|---|---|---|
 | R1 | Extract graph construction; add `repo_atlas_search` and `repo_atlas_impact`; retain lifecycle | Resolution regressions, evidence-chain/cycle/budget tests, session isolation, cancellation, local compile/import | Delivered in `71e3231`; original verification retained |
-| R2 | Non-deleting validation pipeline, labelled evaluation fixtures, current Harness compatibility, and repository-reader port | Artifact freshness/isolation checks; independently labelled corpus and baseline; official declarations at candidate SHA, provider parity, fail-closed behavior, Loader/Web smoke and manual queries | Artifacts/corpus delivered in `b107eea`; reader and candidate declarations implemented; label review and runtime acceptance open |
+| R2 | Non-deleting validation pipeline, labelled evaluation fixtures, current Harness compatibility, and repository-reader port | Artifact freshness/isolation checks; independently labelled corpus and baseline; official declarations at candidate SHA, provider parity, fail-closed behavior, Loader/Web smoke and manual queries | Artifacts/corpus delivered in `b107eea`; reader, candidate declarations, full build and native/Web verification pass; human/stable gates open |
 | R3 | Evidence quality and incremental retrieval | Separate parse input from excerpts; content identity; ignore-rule contract; fresh/stale distinction; deterministic top-k fixtures | Implemented and locally verified; comparative synthetic baseline retained; human review pending |
 | R4 | Optional symbol-level impact using Harness LSP | Definitions/references linked to precise locations, missing language server reported, no runtime breakage claims | Implemented opt-in; provider regressions pass; live LSP/UI acceptance pending |
-| R5 | Legacy module separation and product polish | Public lifecycle behavior unchanged, reader/graph/adapter boundaries testable, bilingual usage, clean packed consumer validation | Physical adapter/helper extraction implemented; characterization passes; real adapter removal tests blocked |
+| R5 | Legacy module separation and product polish | Public lifecycle behavior unchanged, reader/graph/adapter boundaries testable, bilingual usage, clean packed consumer validation | Physical adapter/helper extraction implemented; full suite including real Git adapter cases passes; Windows acceptance open |
 
 R2 must not silently turn direct local reads into remote access. Define provider
 identity, workspace mapping, cancellation, and partial reads before implementing
@@ -298,8 +298,9 @@ choosing edits or tests. Unsupported/unobserved paths remain unknown.
 Historical R1 verification commands and outcomes are recorded in the active OpenSpec
 [tasks](../openspec/changes/repository-intelligence-foundation/tasks.md). Full legacy
 cleanup tests, official current-Harness compilation, live activation, and Windows
-execution remain distinct gates; the packed-artifact gate was subsequently unlocked
-by R2a above. R1 completion does
+execution remain distinct gates. R2a unlocked packed artifacts; the October 5
+follow-up closes the full suite, full upstream build and automated native/Web gates.
+Windows and manual gates remain open. R1 completion does
 not claim completion of R2–R5 or a new supported Harness release.
 
 ## R2c/R3/R4 and mechanical R5 implementation (2026-10-04)
@@ -344,7 +345,8 @@ the lightweight process lint exception confined to the actual adapter.
 See the current [integration verification record](../openspec/changes/repository-intelligence-integration/tasks.md)
 and [R3 comparative baseline](../evaluation/baselines/r3-source-snapshots-2026-10-04.json).
 Implementation and local regression results do not close human label review,
-real-provider LSP/UI, full upstream runtime, Windows or stable promotion gates.
+real-provider LSP/UI, Windows or stable promotion gates; full upstream build and
+automated native/Web verification were subsequently completed on October 5.
 
 Cordis returns a new traced service wrapper for each lookup. Reader identity uses
 its exported `cordis.original` symbol solely to bind the underlying service; all I/O
@@ -358,3 +360,22 @@ reading. Missing stable version/time metadata blocks content reads. This prevent
 failed reads from escaping the total-byte gate. Session cwd validation retains the
 existing host-platform absolute-path requirement; opposite-platform cwd encodings
 and Windows execution have no new acceptance claim.
+
+## Native runtime follow-up (2026-10-05)
+
+The user's assessed-deletion exception closes the eight legacy test exclusions:
+129 unfiltered cases now pass. The exact official build includes the native addon,
+host/client declarations, bundler and Web frontend. Verification uses the installed
+pinned package manager and built public CLI, avoiding the global pnpm wrapper's
+runtime dependency recheck. Authenticated loopback startup follows the browser
+cookie bootstrap; credentials are never persisted in the validation record.
+
+A real Agent/native ToolRuntime probe exposed optional `undefined` analysis fields
+that the current lossless-JSON registry rejects. The output-only projection now
+omits absent object fields, preserves valid values and rejects lossy/executable
+values without changing authorization. All eight native checks pass after that fix.
+The [final synthetic baseline](../evaluation/baselines/runtime-json-output-2026-10-05.json)
+retains the R3 recall measurements and unchanged independent labels/budgets. See
+[delivery evidence](../openspec/changes/repository-intelligence-integration/tasks.md)
+and [candidate validation](../reference/harness-candidate-validation.json) for gates.
+Real configured LSP, human UI/label review, Windows and stable support remain open.

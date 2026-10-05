@@ -63,8 +63,9 @@ file-level analysis.<br>
 
 The current Harness source review and implementation stages are documented in the
 [October plan](docs/replanning-2026-10.md). The reviewed `0.2.1-alpha.1` source is
-not yet an accepted runtime compatibility target.<br>
-当前 Harness 源码审查和实施阶段见[十月重规划](docs/replanning-2026-10.md)。已审查的 `0.2.1-alpha.1` 源码尚未成为通过运行验收的兼容目标。
+experimentally verified on macOS through its native tool runtime and authenticated
+Web startup; the historical accepted pin remains unchanged.<br>
+当前 Harness 源码审查和实施阶段见[十月重规划](docs/replanning-2026-10.md)。`0.2.1-alpha.1` 已在 macOS 通过原生工具运行和带认证的 Web 启动验证；历史正式兼容 pin 保持不变。
 
 ## Readers, source freshness and optional symbols / 读取器、源码新鲜度与可选符号导航
 

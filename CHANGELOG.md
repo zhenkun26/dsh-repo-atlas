@@ -19,10 +19,17 @@ All notable RepoAtlas changes will be documented here. The existing `v0.1.0` tag
 ### Added
 
 - Session-owned `repo_atlas_search` and `repo_atlas_impact` tools expose retained redacted evidence and bounded reverse-import impact with snapshot freshness, evidence chains, and unknown coverage.
-- An October repository-intelligence plan and an exact-source review record for Harness `5badb15009ae1756c3afe0ae0cef1faafc290ccc`; current runtime compatibility is not yet validated.
+- An October repository-intelligence plan and an exact-source review record for Harness `5badb15009ae1756c3afe0ae0cef1faafc290ccc`; experimental native-tool and authenticated Web startup validation is recorded separately from formal support.
 - A synthetic labelled evaluation corpus and reproducible default-budget baseline, including cycle, unresolved, unsupported, redaction, action-budget and retained-text cases; labels remain pending human review.
 
 ### Fixed
+
+- Normalize tool DTO outputs for the native Harness lossless-JSON registry: omit
+  absent object fields and reject lossy values without changing execution authority.
+- Verify the exact installed Harness package manager and built public CLI; follow
+  authenticated loopback bootstrap without logging credentials or disabling auth.
+- Exercise real Agents and the native tool registry for analysis, search, impact,
+  session isolation and cancellation after candidate Loader activation.
 
 - Dependency graph construction no longer selects arbitrary filename-prefix or directory-child matches; ambiguous targets remain unresolved.
 - Exported string initializers no longer become module references. Graph confidence now distinguishes compiler provenance from structural fallback observations.

@@ -1,3 +1,4 @@
+import { withJsonOutput } from './json-output.ts'
 import { createHash } from 'node:crypto'
 import { isSensitivePath, redactSecretLike } from '../safety/content-policy.ts'
 import { isPathCoveredByScope } from '../repository/evidence-cache.ts'
@@ -22,7 +23,7 @@ export function createSymbolTool(resolve: (execution: HarnessToolExecution | und
   const maxResults = config.symbols?.maxResults ?? 50
   integer(timeoutMs, 1, 15_000, 'symbols.timeoutMs')
   integer(maxResults, 1, 100, 'symbols.maxResults')
-  return {
+  return withJsonOutput({
     name: 'repo_atlas_symbols',
     description: 'Query the configured Harness LSP for definitions, references, implementations or hover. Requires a current analyzed source snapshot. Coordinates are one-based UTF-16; references indicate possible symbol impact, not runtime breakage.',
     parameters: { type: 'object', additionalProperties: false, required: ['operation', 'sourcePath', 'line', 'character'], properties: {
@@ -110,7 +111,7 @@ export function createSymbolTool(resolve: (execution: HarnessToolExecution | und
           !runtime.config.excludeDirs.some(dir => sourcePath.split('/').includes(dir) || sourcePath === dir || sourcePath.startsWith(`${dir}/`))
       }
     },
-  }
+  })
 }
 
 function parseInput(input: unknown): { operation: Operation; sourcePath: string; line: number; character: number } {

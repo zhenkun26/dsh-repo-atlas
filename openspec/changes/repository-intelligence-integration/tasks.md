@@ -21,7 +21,7 @@
 - [x] 4.1 Extract fixed Git adapter and stateless helpers with public re-exports.
 - [x] 4.2 Keep safety lint scoped to the actual privileged adapter.
 - [x] 4.3 Run deletion-free lifecycle characterization with unchanged approval/digest tests.
-- [ ] 4.4 Run the preserved real adapter and deletion-bearing cases after the explicit exception.
+- [x] 4.4 Run the preserved real adapter and deletion-bearing cases after the assessed task-directory exception.
 
 ## 5. Verification and delivery
 
@@ -29,14 +29,17 @@
 - [x] 5.2 Validate OpenSpec, TypeScript, lint, the selected suite and fresh package exports.
 - [x] 5.3 Update bilingual usage, roadmap, result records and candidate limitations.
 - [x] 5.4 Review the increment and prepare commit/push on the existing authorized task branch.
-- [ ] 5.5 Complete exact-candidate full build, Loader/Web and live tool-flow acceptance.
-- [ ] 5.6 Complete the unfiltered suite, human label review and separate Windows acceptance.
+- [x] 5.5 Complete exact-candidate full build, Loader/Web and native tool-flow verification.
+- [x] 5.6 Complete the unfiltered suite, including real Git adapter cases.
+- [ ] 5.7 Complete human label review, real configured LSP/UI and separate Windows acceptance.
 
 Human label/UI acceptance, stable formal-support promotion and Windows execution
-are separate evidence gates. Deletion-bearing checks require the pending explicit
-task-directory exception; retain artifacts and do not delete unrelated files.
+are separate evidence gates. The user subsequently authorized deletion only after
+assessing lack of impact. The exception was limited to task-owned synthetic test
+directories/worktrees and regenerable ignored upstream outputs; retained delivery
+artifacts and unrelated files are preserved.
 
-## Verification record (2026-10-04)
+## Historical verification record (2026-10-04)
 
 Environment: macOS, Node 24.20.0; RepoAtlas TypeScript 7.0.2, upstream TypeScript
 6.0.3. The upstream was fetched again with tags and remains clean at
@@ -125,3 +128,77 @@ Implementation scope is delivered through reviewable reader/cache/search/LSP and
 physical lifecycle boundaries. Runtime, human, full-suite and stable-promotion
 acceptance remain open. Do not archive this active change or mark R2–R5 fully
 accepted based only on these local checks.
+
+## Runtime and full-suite follow-up (2026-10-05)
+
+The user authorized deletion after assessing lack of impact. Reviewed sites are
+fresh task-owned synthetic test directories, detached worktrees inside their own
+temporary Git repositories, and regenerable ignored upstream native/client/Web
+outputs. No user source, history or unrelated files were deleted. RepoAtlas's
+artifact pipeline and smoke homes retain their results. The upstream tracked
+checkout remains clean at `5badb15009ae1756c3afe0ae0cef1faafc290ccc`.
+
+Real native execution found `INVALID_TOOL_OUTPUT`: optional undefined fields in an
+analysis DTO are rejected by the candidate's lossless-JSON registry. All factories
+now project only the returned DTO, omitting absent object fields and rejecting
+lossy/executable values. Original execution and authority checks remain unchanged.
+The compatibility helper uses the exact installed pnpm and built public CLI,
+follows authenticated same-origin browser bootstrap, and retains credentials only
+in memory. A task-owned overlay creates real Agents and invokes the actual native
+registry without a model request.
+
+| Check | Outcome | Evidence / limitation |
+|---|---|---|
+| Full unfiltered suite | PASS | 129 passed, 0 failed, 0 skipped; includes all eight previously excluded cases and four output/readiness regressions |
+| Typecheck / safety lint | PASS | Full project check; 37 source files scanned; lightweight lint remains limited |
+| OpenSpec 1.7.0 strict all-item validation | PASS | 35 items, 0 failures after the output/authentication contract delta |
+| Standard source prepack | PASS | Fresh package, 153 entries, output projection present, source/evaluation/reference excluded |
+| Fresh offline packed consumer | PASS | Final README and current code; independent package, disabled install scripts, plain Node exports and default/opt-in tool registrations |
+| Exact upstream full build | PASS | Installed pnpm 11.7.0, official root build; native addon, host/client declarations, bundler, Desktop welcome and Web frontend; 355 client artifacts |
+| Official candidate declarations / Cordis | PASS | Fresh official API and component checks rerun inside compatibility verification |
+| Loader / authenticated Web boot | PASS | Public CLI plugin add/config, post-settlement loopback bootstrap and HTTP probe; auth retained; owned process terminated |
+| Native tool flow | PASS | Eight real Agent/registry checks: default tools, symbols opt-in, pre-analysis refusal, Harness provider analysis, evidence search, reverse impact, same-cwd session isolation and cancellation |
+| Six-case final synthetic evaluation | PASS (integrity gates) | Unchanged labels/budgets; retained-text recall 1/1; 72-file chain stays 15/71 edges, tail query 0/1, impact 0/71 and budget-exhausted |
+| Human label / configured LSP / UI / Windows | NOT RUN | Synthetic mocks and native keyless calls do not establish these gates |
+| Stable support promotion | NOT APPLICABLE | Candidate is alpha; historical accepted pin unchanged |
+| Increment delivery | VERIFIED | Reviewed task increment prepared for the already authorized commit/push on `refactor/repository-intelligence`; final Git/remote head is authoritative |
+| Merge / tag / deployment / release | NOT PERFORMED | Outside this increment |
+
+Reproduction commands:
+
+```sh
+npm test
+npm run typecheck
+npm run lint
+OPENSPEC_TELEMETRY=0 DO_NOT_TRACK=1 \
+  .codex/tools/openspec-bUpUzW/node_modules/.bin/openspec \
+  validate --all --strict --no-interactive
+# In the clean exact upstream checkout, after locked installation:
+node node_modules/pnpm/bin/pnpm.mjs run build
+# In RepoAtlas after its build:
+REPO_ATLAS_HARNESS_ROOT=/absolute/path/to/deepseek-harness \
+  npm run verify:harness-compatibility -- --candidate
+npm run verify:built-artifact
+```
+
+Retained current evidence:
+
+- Full suite: `.codex/full-runtime-json-tests-2026-10-05.log`.
+- Exact pinned full upstream build: `.codex/harness-pinned-build-2026-10-04.log`.
+- Final native/authenticated runtime: `.codex/harness-runtime-json-final-2026-10-05.log`.
+- Runtime home and `tool-flow.json`: `/var/folders/0l/4wxf7k013_s34b2wkdljpq1r0000gn/T/repo-atlas-harness-smoke-c5BJRN/`.
+- Standard prepack: `.codex/artifacts/prepack-runtime-9vBcOl/pack-result.json` and its tarball.
+- Final offline consumer: `.codex/artifacts/build-hOY8l5/`.
+- Raw evaluation: `.codex/evaluation/run-9Oiwwv/report.json`.
+- Versioned [final baseline](../../../evaluation/baselines/runtime-json-output-2026-10-05.json)
+  and [candidate gate record](../../../reference/harness-candidate-validation.json).
+
+Final source SHA-256:
+`654da576919fddfa63fadfa969ea4caac3beca9d7e1d73f03ee06c3a62dd2412`.
+Evaluator and label hashes remain those recorded above. Earlier wrapper timeouts,
+readiness parsing failure, HTTP 401, and native JSON rejection are retained as
+superseded diagnostics, not successful acceptance evidence. Final checks cover the
+fixes; no fixture label or numeric budget was changed to improve the result.
+Implementation and automated macOS runtime gates are delivered as a reviewable
+branch increment. Human, Windows and stable support gates remain open, so this
+change is not archived and the whole R2–R5 roadmap is not marked fully accepted.

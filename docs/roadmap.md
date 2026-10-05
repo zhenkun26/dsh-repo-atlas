@@ -6,12 +6,12 @@
 新的优先级与验收标准见 [October replanning](replanning-2026-10.md)；下方版本记录保留为历史证据。
 
 - R1 已本地实现：独立依赖图模块、严格导入解析、parser provenance、会话内 `repo_atlas_search` 与 `repo_atlas_impact`；既有变更生命周期保留。
-- 当前上游已重新克隆并审查：`5badb15009ae1756c3afe0ae0cef1faafc290ccc`（`0.2.1-alpha.1`）。源码审查不等于官方类型编译、Loader/Web 启动或人工验收通过；已验收 pin 保持不变。
-- R2a/R2b 已本地实现：免删除构建、隔离打包与离线 consumer 验证，以及独立标注的合成评测语料和默认预算基线。R2c 的 exact candidate 验收及只读 reader 适配仍待推进；R3：证据新鲜度和检索质量；R4：可选 LSP 符号级分析；R5：旧生命周期模块分离及产品打磨。
+- 当前上游已重新拉取并审查：`5badb15009ae1756c3afe0ae0cef1faafc290ccc`（`0.2.1-alpha.1`）。官方全量构建、声明契约、Loader、带认证的 Web 启动和原生工具流程已在 macOS 通过；历史正式 pin 保持不变。
+- R2–R5 的实现增量已落地：免删除构建与独立语料、只读 local/Harness reader、源码新鲜度与检索质量、可选 LSP 导航、Git adapter/helper 拆分。人工标签/LSP/UI、Windows 和 stable 正式支持仍待独立验收。
 - 外部评审采纳结果已写入重规划：允许提前评估独立的 Git adapter/无状态 helper 拆分；动态工具可见性列入 R3/R4 观察项；正式 supported pin 默认等待 stable 并通过完整验收，alpha 适配及独立质量工作继续推进。README public/private 问题已在 `71e3231` 解决。
-- 本轮 90 个所选测试、类型检查、现有 lint、常规 build/prepack 与 fresh packed artifact 离线导入通过；8 个涉及删除的旧测试仍未执行。OpenSpec CLI、当前上游编译/启动、人工查询和 Windows 验收仍是独立门禁。
-- 合成循环样例召回完整；72 文件链的依赖边召回为 15/71，报告预算耗尽，末端检索/影响召回为零；保留文本边界查询也为零。标签待人工审阅，结果不能代表真实仓库效果，预算未调整。
-- R1 与规划修订已推送至 `refactor/repository-intelligence`（`71e3231`、`9ee21f9`）；本轮 R2a/R2b 为新的本地增量。详细结果见 [R2 tasks](../openspec/changes/non-deleting-validation-and-evaluation/tasks.md)，历史结果见 [R1 tasks](../openspec/changes/repository-intelligence-foundation/tasks.md)；未发布。
+- 本轮完整 129 项测试、类型检查、lint、OpenSpec 1.7.0、常规 prepack 与 fresh packed artifact 离线导入通过。评估删除范围后，原先八项旧测试已执行；原生运行中发现的严格 JSON 输出不兼容已修复。
+- 合成循环样例召回完整；72 文件链的依赖边召回为 15/71，报告预算耗尽，末端检索/影响召回为零；保留文本边界查询已从 0/1 提升至 1/1。标签待人工审阅，结果不能代表真实仓库效果，预算未调整。
+- R1、R2a/R2b 与 reader/cache/LSP/拆分增量已推送至 `refactor/repository-intelligence`（`71e3231`、`b107eea`、`e71f27e`）。本轮原生运行修复按既有授权继续交付；最终状态见 [integration tasks](../openspec/changes/repository-intelligence-integration/tasks.md)。未合并或发布。
 
 ## 不属于 v1
 
@@ -63,7 +63,8 @@ LSP navigation defaults to disabled. The fixed Git adapter/stateless helpers are
 physically separated while state-machine behavior remains characterized.
 
 The exact experimental candidate's official declarations pass, including fs/LSP.
-The [integration record](../openspec/changes/repository-intelligence-integration/tasks.md)
-separates local checks from the eight deletion-bearing legacy cases, full upstream
-Loader/Web, live LSP/UI, human label review, Windows and stable promotion gates.
+The October 5 [integration follow-up](../openspec/changes/repository-intelligence-integration/tasks.md)
+closes the full 129-case suite, upstream full build, Loader/authenticated Web boot
+and eight native-tool checks. Live configured LSP/UI, human label review, Windows
+and stable promotion remain separate open gates.
 No formal support pin, merge, deployment or release changes follow from these passes.

@@ -187,3 +187,14 @@ workspace URIs are used for relative containment; external, sensitive, unobserve
 and invalid results are filtered. Targets are path-validated, not content-refreshed.
 Timeout requests cancellation and settles the caller even if a provider ignores it;
 it does not prove that an uncooperative provider's background work has stopped.
+
+## Native outputs and compatibility smoke (2026-10-05)
+
+Tool-output projection operates after the original execution checks and does not
+grant I/O or lifecycle authority. It omits absent object fields while rejecting
+lossy values, executable properties and cycles, preserving native JSON semantics.
+Compatibility smoke uses the exact built public CLI, a fresh task-owned home,
+secret-key-filtered environment and disabled telemetry. The loopback browser
+bootstrap keeps credentials/cookies in memory and retains authentication. The
+candidate fixture uses real Agents and the native registry without sending model
+requests. Its pass does not establish human UI or configured LSP acceptance.
