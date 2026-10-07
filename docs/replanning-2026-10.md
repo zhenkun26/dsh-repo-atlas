@@ -140,8 +140,8 @@ unknown/partial detection, output size, bytes read, and elapsed time. Proposed e
 targets: all fixture citations resolve within the snapshot, zero false resolved
 edges in the labelled resolver fixtures, and no cross-session evidence access.
 The synthetic baseline below measures current recall; it establishes neither a
-speedup nor a real-repository benchmark. Monorepo and real-application coverage
-remain future corpus work.
+speedup nor a real-repository benchmark. Synthetic monorepo and application coverage was added on October 7; real-repository
+coverage remains future work.
 
 ## Review decisions and revised R2 order (2026-10-04)
 
@@ -379,3 +379,38 @@ retains the R3 recall measurements and unchanged independent labels/budgets. See
 [delivery evidence](../openspec/changes/repository-intelligence-integration/tasks.md)
 and [candidate validation](../reference/harness-candidate-validation.json) for gates.
 Real configured LSP, human UI/label review, Windows and stable support remain open.
+
+
+## Application and monorepo evaluation follow-up (2026-10-07)
+
+The next bounded R2b/R3 increment adds two synthetic cases under the existing
+evaluation framework: a mixed TS/JS routing/service/utility application and a
+two-application workspace with direct imports, shared re-exports, a configured
+alias and a package name. Inputs and labels were authored before execution; labels
+stay outside scan roots with human review pending. Runtime code, dependencies,
+numeric budgets and plugin authority remain unchanged.
+
+Small complete cases now enforce labelled graph/retrieval/impact coverage,
+unresolved-import equality and exact unknown targets. All cases check graph
+references and reject explicitly unsupported resolved relations. Sensitivity
+regressions prove missed observations and unsafe references fail these gates;
+the intentionally partial chain case keeps its measured deficits.
+
+The eight-case baseline records application edges 5/5, retrieval 3/3 for each
+query and impact 4/4; monorepo edges 6/6, retrieval 6/6 and 2/2, impact 5/5,
+two unresolved imports and the exact absent target. Original six-case graph,
+query, impact, budget and read-charge metrics, configuration and runtime source
+hash remain identical to the October 5 baseline. The 72-file chain remains 15/71
+edges, tail retrieval 0/1 and impact 0/71 with budget exhaustion.
+
+Local verification passes 131 unfiltered tests, typecheck, safety lint, fresh
+build/pack/offline imports and strict OpenSpec (36 items). CI now evaluates the
+corpus in the existing Node 22/24 matrix and triggers on the current refactor
+branch's push as well as main/PR. Remote run status is a separate delivery check.
+See the [OpenSpec verification record](../openspec/changes/application-monorepo-evaluation/tasks.md)
+and [eight-case baseline](../evaluation/baselines/application-monorepo-2026-10-07.json).
+No private logs or generated package are published with this increment.
+
+Human label review, real-repository evaluation, configured LSP/UI acceptance,
+Windows execution and stable Harness support remain open. Synthetic passes do
+not close those gates; no active change is archived or compatibility pin promoted.

@@ -13,7 +13,7 @@ directory on each run. No repository code is executed and no files are deleted.
 npm run evaluate:repository
 ```
 
-Each report records source/input/label/evaluator hashes, Node and platform, default
+Each report records source/input/label/evaluator/gate-module hashes, Node and platform, default
 budgets, measured results and elapsed time. Reports are preserved, including cases
 with low recall. A zero exit code checks for false resolved edges, snapshot-reference
 integrity, redaction, sensitive-path exclusion, and expected budget status; it does not mean every query or graph is complete.
@@ -30,6 +30,8 @@ integrity, redaction, sensitive-path exclusion, and expected budget status; it d
 | budget-chain | 72 files exceed search/action/AST defaults / 72 个文件超出搜索、动作和 AST 默认范围 |
 | retained-text | Query marker beyond retained 8,000-character text / 查询标记位于保留文本的 8,000 字符之外 |
 | sensitive | Synthetic sensitive path and redaction / 合成敏感路径与脱敏 |
+| application | Mixed TS/JS routing, service, utility and test imports / 混合 TS/JS 路由、服务、工具与测试依赖 |
+| monorepo | Cross-workspace imports, re-exports, aliases, package names and unknown target / 跨工作区导入、重导出、别名、包名与未知目标 |
 
 Retrieval recall uses unique source paths from the existing top ten **evidence
 records**. Graph recall covers labelled static resolvable edges. Impact recall
@@ -85,3 +87,20 @@ baselines are preserved. Labels still require human review.
 [原生输出修复基线](baselines/runtime-json-output-2026-10-05.json) 记录严格 JSON 适配修复后的
 最终源码哈希。同一组六个独立标签和数值预算保持 R3 召回结果，历史基线完整保留；
 标签仍待人工审阅。
+
+
+The [application and monorepo baseline](baselines/application-monorepo-2026-10-07.json)
+adds two independently authored synthetic cases. Both opt into
+`expectCompleteCoverage`: missing labelled edges, relevant retrieval files,
+affected files, unexpected affected files, truncated impact or an unresolved-set
+mismatch fail the command. `expectedUnknownTargets` checks exact unknown targets.
+All cases additionally require valid graph references and exclude explicitly
+labelled unsupported relations. The original six cases keep their measured metrics
+without new recall minima. CI runs this command on Node 22/24.
+
+[应用与 monorepo 基线](baselines/application-monorepo-2026-10-07.json) 增加两例独立编写的合成语料。
+两例显式启用完整静态快照门禁：漏掉标注依赖、检索文件、影响文件，出现额外影响文件、
+截断影响结果或未解析导入集合不匹配均使命令失败；未知目标须精确匹配。
+所有样例另检查图引用和显式不支持关系；原六例不增加召回下限，保留原实测指标。
+CI 在 Node 22/24 执行此命令。别名和包名仍不解析，标签仍待人工审阅；
+合成样例完整召回不代表真实项目、运行时影响、LSP/UI 或 Windows 验收。

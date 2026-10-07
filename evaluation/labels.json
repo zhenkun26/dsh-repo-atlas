@@ -4,7 +4,8 @@
     "kind": "agent-authored-synthetic-ground-truth",
     "authoredOn": "2026-10-04",
     "method": "Source and expected relationships authored before the evaluator; no labels derived from model outputs or algorithm results.",
-    "reviewStatus": "human-review-pending"
+    "reviewStatus": "human-review-pending",
+    "extendedOn": "2026-10-07"
   },
   "cases": [
     {
@@ -263,6 +264,158 @@
       ],
       "forbiddenEvidencePaths": [
         ".env"
+      ]
+    },
+    {
+      "id": "application",
+      "repository": "corpus/application/repository",
+      "authoredOn": "2026-10-07",
+      "expectedEdges": [
+        [
+          "src/main.ts",
+          "src/http/router.ts"
+        ],
+        [
+          "src/http/router.ts",
+          "src/services/invoice.ts"
+        ],
+        [
+          "src/services/invoice.ts",
+          "src/lib/money.js"
+        ],
+        [
+          "tests/invoice.test.ts",
+          "src/services/invoice.ts"
+        ],
+        [
+          "tests/invoice.test.ts",
+          "src/lib/money.js"
+        ]
+      ],
+      "queries": [
+        {
+          "query": "createInvoice",
+          "relevantFiles": [
+            "src/http/router.ts",
+            "src/services/invoice.ts",
+            "tests/invoice.test.ts"
+          ]
+        },
+        {
+          "query": "roundCents",
+          "relevantFiles": [
+            "src/services/invoice.ts",
+            "src/lib/money.js",
+            "tests/invoice.test.ts"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "src/lib/money.js"
+        ],
+        "affectedFiles": [
+          "src/services/invoice.ts",
+          "src/http/router.ts",
+          "src/main.ts",
+          "tests/invoice.test.ts"
+        ]
+      },
+      "unresolved": [],
+      "expectBudgetExhausted": false,
+      "expectCompleteCoverage": true,
+      "expectedUnknownTargets": []
+    },
+    {
+      "id": "monorepo",
+      "repository": "corpus/monorepo/repository",
+      "authoredOn": "2026-10-07",
+      "expectedEdges": [
+        [
+          "packages/shared/src/index.ts",
+          "packages/shared/src/math.ts"
+        ],
+        [
+          "apps/api/src/main.ts",
+          "packages/shared/src/index.ts"
+        ],
+        [
+          "apps/web/src/main.ts",
+          "apps/web/src/view.ts"
+        ],
+        [
+          "apps/web/src/view.ts",
+          "packages/shared/src/math.ts"
+        ],
+        [
+          "tests/workspace.test.ts",
+          "apps/api/src/main.ts"
+        ],
+        [
+          "tests/workspace.test.ts",
+          "apps/web/src/view.ts"
+        ]
+      ],
+      "queries": [
+        {
+          "query": "calculateTotal",
+          "relevantFiles": [
+            "packages/shared/src/math.ts",
+            "packages/shared/src/index.ts",
+            "apps/api/src/main.ts",
+            "apps/api/src/worker.ts",
+            "apps/web/src/main.ts",
+            "apps/web/src/view.ts"
+          ]
+        },
+        {
+          "query": "apiBoot",
+          "relevantFiles": [
+            "apps/api/src/main.ts",
+            "tests/workspace.test.ts"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "packages/shared/src/math.ts",
+          "packages/shared/src/missing.ts"
+        ],
+        "affectedFiles": [
+          "packages/shared/src/index.ts",
+          "apps/api/src/main.ts",
+          "apps/web/src/main.ts",
+          "apps/web/src/view.ts",
+          "tests/workspace.test.ts"
+        ]
+      },
+      "unresolved": [
+        {
+          "sourcePath": "apps/web/src/main.ts",
+          "moduleSpecifier": "@shared/math"
+        },
+        {
+          "sourcePath": "apps/api/src/worker.ts",
+          "moduleSpecifier": "@fixture/shared"
+        }
+      ],
+      "unsupportedRelations": [
+        [
+          "apps/web/src/main.ts",
+          "packages/shared/src/math.ts"
+        ],
+        [
+          "apps/api/src/worker.ts",
+          "packages/shared/src/index.ts"
+        ]
+      ],
+      "expectBudgetExhausted": false,
+      "expectCompleteCoverage": true,
+      "expectedUnknownTargets": [
+        "packages/shared/src/missing.ts"
+      ],
+      "limitations": [
+        "Alias and package-export resolution remain unsupported; affected labels describe only observed resolvable static edges, not runtime impact."
       ]
     }
   ]

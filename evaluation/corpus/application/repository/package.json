@@ -1,0 +1,5 @@
+{
+  "name": "synthetic-invoice-app",
+  "private": true,
+  "type": "module"
+}

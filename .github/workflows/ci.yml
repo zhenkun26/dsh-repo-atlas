@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, refactor/repository-intelligence]
   pull_request:
 
 permissions:
@@ -42,6 +42,9 @@ jobs:
 
       - name: Safety lint
         run: npm run lint
+
+      - name: Evaluate repository intelligence
+        run: npm run evaluate:repository
 
       - name: Verify local built artifact
         run: npm run verify:built-artifact

@@ -21,6 +21,11 @@ All notable RepoAtlas changes will be documented here. The existing `v0.1.0` tag
 - Session-owned `repo_atlas_search` and `repo_atlas_impact` tools expose retained redacted evidence and bounded reverse-import impact with snapshot freshness, evidence chains, and unknown coverage.
 - An October repository-intelligence plan and an exact-source review record for Harness `5badb15009ae1756c3afe0ae0cef1faafc290ccc`; experimental native-tool and authenticated Web startup validation is recorded separately from formal support.
 - A synthetic labelled evaluation corpus and reproducible default-budget baseline, including cycle, unresolved, unsupported, redaction, action-budget and retained-text cases; labels remain pending human review.
+- Mixed TS/JS application and monorepo evaluation cases with complete static-snapshot
+  gates for expected edges, relevant files, reverse impact, unresolved imports and
+  unknown targets; unchanged partial baselines remain visible.
+- Repository evaluation in the Node 22/24 CI matrix, including push checks for the
+  active repository-intelligence branch.
 
 ### Fixed
 

@@ -8,6 +8,7 @@ import { analyzeImpact, searchEvidence } from '../src/repository/intelligence.ts
 import { createGoalSpec, resolveStart } from '../src/clarification/goal.ts'
 import { DEFAULT_CONFIG } from '../src/config.ts'
 import { filesUnder } from './build-artifact.mjs'
+import { evaluationGateFailures } from './evaluation-gates.ts'
 
 interface EvaluationCase {
   id: string
@@ -18,6 +19,8 @@ interface EvaluationCase {
   impact: { targets: string[]; affectedFiles: string[] }
   unresolved?: Array<{ sourcePath: string; moduleSpecifier: string }>
   expectBudgetExhausted: boolean
+  expectCompleteCoverage?: boolean
+  expectedUnknownTargets?: string[]
   forbiddenEvidenceStrings?: string[]
   forbiddenEvidencePaths?: string[]
   unsupportedRelations?: string[][]
@@ -60,9 +63,14 @@ for (const entry of labels.cases) {
   const retainedEvidenceText = JSON.stringify({ evidence: session.evidence, sourceMaterial: [...(session.sourceSnapshots?.values() ?? [])] })
   const redactionPassed = (entry.forbiddenEvidenceStrings ?? []).every(value => !retainedEvidenceText.includes(value))
   const sensitivePathsExcluded = (entry.forbiddenEvidencePaths ?? []).every(value => !session.evidence.some(item => item.sourcePath === value))
-  results.push({ id: entry.id, inputSha256: fingerprint(repository), edgeMetrics, retrieval,
+  const graphReferencesValid = graph.edges.every(edge =>
+    observedPaths.has(edge.from) && observedPaths.has(edge.to) && edge.evidenceIds.length > 0 &&
+    edge.evidenceIds.every(id => evidenceIds.has(id))) && graph.unresolved.every(item =>
+    observedPaths.has(item.sourcePath) && evidenceIds.has(item.evidenceId))
+  const result = { id: entry.id, inputSha256: fingerprint(repository), edgeMetrics, retrieval, graphReferencesValid,
+    unsupportedRelationsExcluded: (entry.unsupportedRelations ?? []).every(([from, to]) => !graph.edges.some(edge => edge.from === from && edge.to === to)),
     impact: { ...compareSets(impact.affected.map(item => item.sourcePath), entry.impact.affectedFiles), truncated: impact.truncated,
-      unknownTargets: impact.unknownTargets, evidenceReferencesValid: impact.affected.every(item => item.evidenceIds.every(id => evidenceIds.has(id))) },
+      unknownTargets: impact.unknownTargets, evidenceReferencesValid: impact.affected.every(item => observedPaths.has(item.sourcePath) && observedPaths.has(item.via) && item.evidenceIds.length > 0 && item.evidenceIds.every(id => evidenceIds.has(id))) },
     unresolved, redactionPassed, sensitivePathsExcluded, budgetExhausted: session.scan.budget.exhausted,
     expectedBudgetStatusMatched: session.scan.budget.exhausted === entry.expectBudgetExhausted,
     astStatuses: countValues((session.ast ?? []).map(item => item.status)),
@@ -70,12 +78,14 @@ for (const entry of labels.cases) {
     unsupportedLabelledRelations: entry.unsupportedRelations?.length ?? 0,
     readBytes: session.scan.budget.readBytes, actions: session.scan.budget.actions,
     elapsedMs: Math.round(elapsedMs * 100) / 100,
-  })
+  }
+  results.push({ ...result, gateFailures: evaluationGateFailures(result, entry) })
 }
 
 const report = {
   schemaVersion: 1, generatedAt: new Date().toISOString(), platform: process.platform, node: process.version,
   sourceSha256: sourceFingerprint, evaluatorSha256: sha256(readFileSync(new URL(import.meta.url), 'utf8')), labelsSha256: sha256(labelsText), labelProvenance: labels.provenance,
+  gateModuleSha256: sha256(readFileSync(new URL('./evaluation-gates.ts', import.meta.url), 'utf8')),
   configuration: DEFAULT_CONFIG, metricsDefinition: {
     retrieval: 'Unique source files from the top 10 ranked evidence records; current ranking prefers distinct files before repeated observations. Recall against independently authored relevant-file labels.',
     graph: 'Static file-edge precision/recall against labelled resolvable relations; unsupported relations recorded separately.',
@@ -89,8 +99,9 @@ writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' }
 console.log(`Evaluation report retained at ${reportPath}`)
 for (const entry of results) console.log(JSON.stringify({ case: entry.id, edgeRecall: entry.edgeMetrics.recall,
   retrievalRecall: entry.retrieval.map(query => query.recall), impactRecall: entry.impact.recall, partial: entry.budgetExhausted }))
-if (results.some(entry => entry.edgeMetrics.unexpected.length > 0 || !entry.redactionPassed || !entry.sensitivePathsExcluded || !entry.expectedBudgetStatusMatched || entry.retrieval.some(query => !query.snapshotReferenceIntegrity) || !entry.impact.evidenceReferencesValid)) {
-  console.error('FAIL: evaluation false-edge, integrity, redaction, or expected budget-state contract failed.')
+if (results.some(entry => entry.gateFailures.length > 0)) {
+  for (const entry of results.filter(entry => entry.gateFailures.length)) console.error(JSON.stringify({ case: entry.id, gateFailures: entry.gateFailures }))
+  console.error('FAIL: evaluation labelled coverage or safety contract failed.')
   process.exitCode = 1
 }
 
