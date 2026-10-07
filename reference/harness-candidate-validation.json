@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "verifiedOn": "2026-10-05",
+  "scope": "Experimental macOS automated verification; not formal support promotion",
+  "target": {
+    "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+    "ref": "dsh-v0.2.1-alpha.1",
+    "revision": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+    "version": "0.2.1-alpha.1",
+    "status": "experimental-prerelease",
+    "profile": "web",
+    "node": "24.x",
+    "packageManager": "pnpm@11.7.0",
+    "promotion": "Formal promotion requires 0.2.x stable and all acceptance gates; this manifest never updates the accepted pin."
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v24.20.0",
+    "packageManager": "pnpm@11.7.0",
+    "repoAtlasTypeScript": "7.0.2",
+    "upstreamTypeScript": "6.0.3"
+  },
+  "sourceSha256": "654da576919fddfa63fadfa969ea4caac3beca9d7e1d73f03ee06c3a62dd2412",
+  "compatibilityVerifierSha256": "a83d672ea60c2d67cfda11e3ce9bcbf05d13f2f1cb2b28a2e67a12383327d8f7",
+  "nativeProbeSha256": "fffaa068a381344a09d33cc61cfe93fd1cd818baa2560d5bf1a100932c125ab4",
+  "gates": {
+    "fullSuite": {
+      "status": "PASS",
+      "passed": 129,
+      "failed": 0,
+      "skipped": 0
+    },
+    "typecheck": "PASS",
+    "safetyLint": {
+      "status": "PASS",
+      "sourceFiles": 37
+    },
+    "strictOpenSpec": {
+      "status": "PASS",
+      "version": "1.7.0",
+      "items": 35
+    },
+    "sourcePrepack": {
+      "status": "PASS",
+      "packageEntries": 153
+    },
+    "freshOfflineConsumer": "PASS",
+    "officialDeclarations": "PASS",
+    "officialCordisComponent": "PASS",
+    "fullUpstreamBuild": {
+      "status": "PASS",
+      "clientArtifacts": 355
+    },
+    "cleanUpstreamTrackedSource": "PASS",
+    "loaderActivation": "PASS",
+    "authenticatedLoopbackWeb": "PASS",
+    "nativeToolFlow": {
+      "status": "PASS",
+      "checks": [
+        "four-default-tools",
+        "symbols-opt-in",
+        "query-before-analysis-blocked",
+        "native-provider-analysis",
+        "evidence-search",
+        "reverse-import-impact",
+        "same-cwd-session-isolation",
+        "caller-cancellation"
+      ]
+    },
+    "syntheticEvaluation": "PASS (integrity gates; unchanged R3 recall)",
+    "configuredLsp": "NOT_RUN",
+    "humanUi": "NOT_RUN",
+    "humanLabels": "NOT_RUN",
+    "windows": "NOT_RUN",
+    "modelRequest": "NOT_PERFORMED",
+    "stablePromotion": "NOT_APPLICABLE (prerelease)"
+  },
+  "acceptedRevisionUnchanged": "47f943859bef60e4160492346772ded9b24f765a",
+  "deletionAssessment": "Only fresh task-owned synthetic test directories/worktrees and regenerable ignored upstream outputs; no user source, history or unrelated files.",
+  "evidence": {
+    "fullSuite": ".codex/full-runtime-json-tests-2026-10-05.log",
+    "upstreamBuild": ".codex/harness-pinned-build-2026-10-04.log",
+    "runtime": ".codex/harness-runtime-json-final-2026-10-05.log",
+    "prepack": ".codex/artifacts/prepack-runtime-9vBcOl/pack-result.json",
+    "offlineConsumer": ".codex/artifacts/build-hOY8l5/",
+    "evaluation": "evaluation/baselines/runtime-json-output-2026-10-05.json",
+    "note": "Raw logs and task-owned artifacts are retained locally and ignored by Git; this record contains no bootstrap credentials."
+  },
+  "followUps": [
+    {
+      "verifiedOn": "2026-10-07",
+      "scope": "Independent review repair; experimental macOS automated rerun, not formal support promotion",
+      "sourceSha256": "3ab93269ada669f6d64e90f88e25ddd00048f6e5222cb7db19b5df1de0e3e362",
+      "fullSuite": {
+        "passed": 139,
+        "failed": 0,
+        "skipped": 0
+      },
+      "strictOpenSpec": {
+        "version": "1.7.0",
+        "items": 37,
+        "failed": 0
+      },
+      "isolatedFallback": {
+        "parser": "bounded-structural",
+        "checks": 11,
+        "status": "PASS"
+      },
+      "realCompiler": {
+        "version": "6.0.3",
+        "parser": "typescript-compiler",
+        "checks": 9,
+        "status": "PASS"
+      },
+      "candidateRuntime": {
+        "status": "PASS",
+        "nativeToolChecks": 8,
+        "officialDeclarations": "PASS",
+        "officialCordisComponent": "PASS",
+        "loaderActivation": "PASS",
+        "authenticatedWeb": "PASS",
+        "upstreamBuild": "Reused existing clean exact official build; no upstream source or dependency changes"
+      },
+      "freshOfflineConsumer": "PASS",
+      "evaluation": "evaluation/baselines/budget-module-identity-2026-10-07.json",
+      "verificationRecord": "openspec/changes/bounded-read-and-module-identity-repair/tasks.md",
+      "defaultCiParser": "TypeScript 7.0.2 has no JavaScript compiler API; fallback coverage only",
+      "pending": [
+        "humanLabels",
+        "configuredLsp",
+        "humanUi",
+        "windows",
+        "realRepositoryEvaluation",
+        "stablePromotion"
+      ]
+    }
+  ]
+}

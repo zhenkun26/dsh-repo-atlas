@@ -51,6 +51,7 @@ interface Token {
   position: number
   line: number
   column: number
+  staticString?: boolean
 }
 
 let cachedCompilerApi: CompilerApi | null | undefined
@@ -139,7 +140,7 @@ function parseWithCompiler(api: CompilerApi, relativePath: string, text: string,
 function compilerObservations(api: CompilerApi, sourceFile: CompilerSourceFile, node: CompilerNode, options: AstParserOptions): AstObservation[] {
   const observations: AstObservation[] = []
   if (api.isImportDeclaration(node) || api.isImportEqualsDeclaration(node)) {
-    const moduleSpecifier = stringProperty(property(node, 'moduleSpecifier'), 'text') ?? stringProperty(property(node, 'externalModuleReference'), 'text')
+    const moduleSpecifier = stringProperty(property(node, 'moduleSpecifier'), 'text') ?? stringProperty(property(property(node, 'moduleReference'), 'expression'), 'text')
     observations.push(makeCompilerObservation(sourceFile, node, 'import', moduleSpecifier ? `import from ${moduleSpecifier}` : 'import declaration', options, { moduleSpecifier }))
   } else if (api.isExportDeclaration(node) || api.isExportAssignment(node)) {
     const moduleSpecifier = stringProperty(property(node, 'moduleSpecifier'), 'text')
@@ -185,6 +186,7 @@ function makeCompilerObservation(sourceFile: CompilerSourceFile, node: CompilerN
     column: location.character + 1,
     summary: boundedText(summary, options.maxObservationTextBytes),
     ...extra,
+    ...(extra.moduleSpecifier !== undefined ? boundedModuleSpecifier(extra.moduleSpecifier) : {}),
   }
 }
 
@@ -209,11 +211,11 @@ function parseWithBoundedStructure(relativePath: string, text: string, options: 
     const topLevel = braceDepth === 0 && parenDepth === 0 && bracketDepth === 0
     if (topLevel && token.kind === 'identifier') {
       if (token.value === 'import' && tokenized.tokens[index + 1]?.value !== '(' && tokenized.tokens[index + 1]?.value !== '.') {
-        const moduleSpecifier = findStringAfter(tokenized.tokens, index + 1)
-        add(observation(token, 'import', moduleSpecifier ? `import from ${moduleSpecifier}` : 'import declaration', options, { moduleSpecifier }))
+        const moduleToken = findModuleSpecifier(tokenized.tokens, index)
+        add(observation(token, 'import', moduleToken ? `import from ${moduleToken.value}` : 'import declaration', options, moduleToken ? boundedModuleSpecifier(moduleToken.value, moduleToken.staticString === true) : {}))
       } else if (token.value === 'export') {
-        const moduleSpecifier = findStringAfter(tokenized.tokens, index + 1)
-        add(observation(token, 'export', moduleSpecifier ? `export from ${moduleSpecifier}` : 'export declaration', options, { moduleSpecifier }))
+        const moduleToken = findModuleSpecifier(tokenized.tokens, index)
+        add(observation(token, 'export', moduleToken ? `export from ${moduleToken.value}` : 'export declaration', options, moduleToken ? boundedModuleSpecifier(moduleToken.value, moduleToken.staticString === true) : {}))
       } else if (['function', 'class', 'interface', 'type', 'enum'].includes(token.value)) {
         const name = nextIdentifier(tokenized.tokens, index + 1)
         const kind = token.value === 'function' ? 'function' : token.value === 'class' ? 'class' : 'declaration'
@@ -278,22 +280,24 @@ function tokenize(text: string, maxTokens: number, signal?: AbortSignal): { stat
       column += 1
       let value = ''
       let closed = false
+      let staticString = quote !== '`'
       while (index < text.length) {
         const char = text[index]
         if (char === '\\') {
-          value += text[index + 1] ?? ''
+          staticString = false // Do not implement a partial JavaScript escape decoder.
+          value += char + (text[index + 1] ?? '')
           index += 2
           column += 2
           continue
         }
         if (char === quote) { index += 1; column += 1; closed = true; break }
-        if (char === '\n') { line += 1; column = 1; value += ' '; index += 1; continue }
+        if (char === '\n') { staticString = false; line += 1; column = 1; value += char; index += 1; continue }
         value += char
         index += 1
         column += 1
       }
       if (!closed) return { status: 'read-failed', tokens, reason: `unterminated string at ${tokenLine}:${tokenColumn}` }
-      tokens.push({ value, kind: 'string', position, line: tokenLine, column: tokenColumn })
+      tokens.push({ value, kind: 'string', position, line: tokenLine, column: tokenColumn, staticString })
     } else if (/[A-Za-z_$]/.test(current)) {
       let value = current
       index += 1
@@ -323,10 +327,15 @@ function validateBalance(tokens: readonly Token[]): string | undefined {
   return stack.length ? 'unbalanced syntax at end of file' : undefined
 }
 
-function findStringAfter(tokens: readonly Token[], start: number): string | undefined {
-  for (let index = start; index < Math.min(tokens.length, start + 80); index += 1) {
-    if (tokens[index].kind === 'string') return boundedModuleSpecifier(tokens[index].value)
-    if (tokens[index].value === ';') break
+function findModuleSpecifier(tokens: readonly Token[], start: number): Token | undefined {
+  const first = tokens[start + 1]
+  if (tokens[start].value === 'import' && first?.kind === 'string') return first
+  // A declaration initializer is not a re-export, even if it contains a path.
+  if (tokens[start].value === 'export' && !['*', '{', 'type'].includes(first?.value)) return undefined
+  for (let index = start + 1; index < Math.min(tokens.length - 1, start + 80); index += 1) {
+    const token = tokens[index]
+    if ([';', '=', 'const', 'let', 'var', 'function', 'class', 'import', 'export'].includes(token.value)) break
+    if (token.value === 'from' && tokens[index + 1].kind === 'string') return tokens[index + 1]
   }
   return undefined
 }
@@ -353,7 +362,7 @@ function property(value: unknown, key: string): unknown {
 
 function stringProperty(value: unknown, key: string): string | undefined {
   const candidate = property(value, key)
-  return typeof candidate === 'string' ? boundedModuleSpecifier(candidate) : undefined
+  return typeof candidate === 'string' ? candidate : undefined
 }
 
 function nodeName(node: CompilerNode): string | undefined {
@@ -370,8 +379,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-function boundedModuleSpecifier(value: string): string {
-  return boundedText(value, 160)
+function boundedModuleSpecifier(value: string, reliable = true): Pick<AstObservation, 'moduleSpecifier' | 'moduleSpecifierExact'> {
+  // Keep the existing 160 UTF-16 code-unit limit; display formatting is not identity.
+  const redacted = redactSecretLike(value)
+  const exact = reliable && value.length <= 160 && !/[\u0000-\u001f\u007f]/.test(value) &&
+    !value.includes('[REDACTED_SECRET]') && redacted.text === value
+  return { moduleSpecifier: exact ? value : boundedText(value, 160), moduleSpecifierExact: exact }
 }
 
 function boundedText(value: string, maxBytes: number): string {

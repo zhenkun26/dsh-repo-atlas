@@ -1,0 +1,6 @@
+{
+  "name": "synthetic-workspace",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"]
+}

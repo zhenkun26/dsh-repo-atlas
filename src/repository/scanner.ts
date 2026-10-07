@@ -1,15 +1,17 @@
-import fs from 'node:fs/promises'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
+import { parseRootIgnorePolicy } from './ignore-policy.ts'
 import { createConfig } from '../config.ts'
 import { redactSecretLike, isSensitivePath } from '../safety/content-policy.ts'
 import { decideAction, auditDecision } from '../safety/policy-gate.ts'
-import { assertWorkspacePath, checkWorkspacePath } from '../safety/path-policy.ts'
+import { LocalRepositoryReader, relativeReaderPath, type ReaderStat, type RepositoryReader } from './reader.ts'
 import { isPathCoveredByScope } from './evidence-cache.ts'
 import { isAstSupportedPath, parseAstSource } from './ast-parser.ts'
 import type { AstParseResult, AuditEvent, EvidenceFingerprint, ReadResult, RepoAtlasConfig, ScanResult, ScannedFile, ToolAction } from '../types.ts'
 
 export class RepositoryScanner {
   readonly config: RepoAtlasConfig
+  readonly reader: RepositoryReader
   private readonly scanned: ScannedFile[] = []
   private readonly skipped: Array<{ path: string; reason: string }> = []
   private readonly failures: Array<{ path: string; reason: string }> = []
@@ -18,15 +20,24 @@ export class RepositoryScanner {
   private actionCount = 0
   private candidateFiles = 0
   private exhausted = false
+  private ignoreLoaded = false
+  private ignore = parseRootIgnorePolicy('')
+  private ignoreHash = ''
+  private nestedPoliciesObserved = 0
+  private visitedDirectories = 0
 
-  constructor(workspaceRoot: string, overrides: Partial<Omit<RepoAtlasConfig, 'workspaceRoot'>> = {}) {
+  constructor(workspaceRoot: string, overrides: Partial<Omit<RepoAtlasConfig, 'workspaceRoot'>> = {}, reader?: RepositoryReader) {
     this.config = createConfig(workspaceRoot, overrides)
+    this.reader = reader ?? new LocalRepositoryReader(this.config.workspaceRoot)
+    if (path.resolve(this.reader.workspaceRoot) !== this.config.workspaceRoot) throw new Error('Repository reader workspace does not match configuration')
   }
 
   async discover(signal?: AbortSignal): Promise<ScanResult> {
+    await this.loadIgnorePolicy(signal)
     for (const scope of this.config.scope ?? ['.']) {
       if (signal?.aborted || this.exhausted) break
-      await this.walk(scope, signal)
+      try { await this.walk(scope, signal, true) }
+      catch (error) { this.failures.push({ path: scope, reason: errorMessage(error, this.reader.kind === 'harness') }) }
     }
     return this.snapshot()
   }
@@ -35,16 +46,21 @@ export class RepositoryScanner {
     if (signal?.aborted) return this.interrupted(relativePath)
     const decision = this.beginAction('read', relativePath)
     if (!decision.allowed) return this.deniedRead(relativePath, decision.reason)
-    const absolutePath = assertWorkspacePath(this.config.workspaceRoot, relativePath)
-    const normalized = normalizeRelative(this.config.workspaceRoot, absolutePath)
+    const normalized = relativeReaderPath(this.reader, relativePath)
+    if (!isPathCoveredByScope(normalized, this.config.scope)) return this.deniedRead(normalized, 'path is outside confirmed analysis scope')
     if (isSensitivePath(normalized, this.config.sensitiveFilePatterns)) return this.deniedRead(normalized, 'sensitive path is denied')
+    await this.loadIgnorePolicy(signal)
+    if (this.exhausted) return { relativePath: normalized, status: 'budget-exhausted', redacted: false, reason: 'policy or resource budget prevents reading' }
+    if (this.ignore.ignored(normalized) || this.config.excludeDirs.some(directory => normalized.split('/').includes(directory) || normalized.startsWith(`${directory}/`))) return this.deniedRead(normalized, 'ignored path is denied')
     let stat
     try {
-      stat = await fs.stat(absolutePath)
+      stat = await this.reader.stat(normalized, signal)
     } catch (error) {
-      return this.failedRead(normalized, errorMessage(error))
+      return this.failedRead(normalized, errorMessage(error, this.reader.kind === 'harness'))
     }
-    if (!stat.isFile()) return this.failedRead(normalized, 'not a regular file')
+    if (stat?.type !== 'file') return this.failedRead(normalized, 'not a regular file')
+    if (stat.size === undefined || !Number.isSafeInteger(stat.size) || stat.size < 0) return this.failedRead(normalized, 'file byte size is unavailable')
+    if (!stat.version && ![stat.mtimeMs, stat.ctimeMs].every(Number.isFinite)) return this.failedRead(normalized, 'stable file version metadata is unavailable')
     if (stat.size > this.config.maxFileBytes) {
       this.skip(normalized, 'file exceeds maxFileBytes')
       return { relativePath: normalized, status: 'budget-exhausted', redacted: false, reason: 'file exceeds maxFileBytes', sizeBytes: stat.size }
@@ -55,9 +71,18 @@ export class RepositoryScanner {
       return { relativePath: normalized, status: 'budget-exhausted', redacted: false, reason: 'total read budget exhausted', sizeBytes: stat.size }
     }
     try {
-      const buffer = await fs.readFile(absolutePath)
-      this.readBytes += buffer.byteLength
+      const readCap = stat.size
+      this.readBytes += readCap // Reserve the entire I/O cap; failed or cancelled attempts are not refunded.
+      const buffer = Buffer.from(await this.reader.read(normalized, readCap, signal))
       if (signal?.aborted) return this.interrupted(normalized)
+      if (buffer.byteLength > stat.size || buffer.byteLength > this.config.maxFileBytes || this.readBytes > this.config.maxTotalBytes) {
+        this.exhausted = true
+        return { relativePath: normalized, status: 'budget-exhausted', redacted: false, reason: 'reader exceeded bounded metadata or read budget', sizeBytes: buffer.byteLength }
+      }
+      const after = await this.reader.stat(normalized, signal)
+      if (buffer.byteLength !== stat.size || after?.type !== 'file' || after.size !== stat.size || after.version !== stat.version || after.mtimeMs !== stat.mtimeMs || after.ctimeMs !== stat.ctimeMs) return this.failedRead(normalized, 'file metadata changed during bounded read')
+      const observed = this.scanned.find(file => file.relativePath === normalized)
+      if (observed) observed.fingerprint = createFingerprint(normalized, after)
       if (looksBinary(buffer)) {
         this.skip(normalized, 'binary file')
         return { relativePath: normalized, status: 'safety-skipped', redacted: false, reason: 'binary file', sizeBytes: stat.size }
@@ -72,11 +97,12 @@ export class RepositoryScanner {
         sizeBytes: stat.size,
       }
     } catch (error) {
-      return this.failedRead(normalized, errorMessage(error))
+      return signal?.aborted ? this.interrupted(normalized) : this.failedRead(normalized, errorMessage(error, this.reader.kind === 'harness'))
     }
   }
 
   async search(query: string, relativePaths?: string[], signal?: AbortSignal, providedText?: ReadonlyMap<string, string>, observedText?: Map<string, string>, readPaths?: Set<string>): Promise<Array<{ path: string; line: number; text: string }>> {
+    await this.loadIgnorePolicy(signal)
     const decision = this.beginAction('search', relativePaths?.[0] ?? '.')
     if (!decision.allowed) return []
     const pattern = new RegExp(query, 'i')
@@ -84,6 +110,7 @@ export class RepositoryScanner {
     const matches: Array<{ path: string; line: number; text: string }> = []
     for (const candidate of paths) {
       if (signal?.aborted) break
+      if (!this.eligiblePath(candidate)) continue
       let text: string | undefined
       if (providedText?.has(candidate)) {
         text = providedText.get(candidate)
@@ -102,8 +129,9 @@ export class RepositoryScanner {
   }
 
   async parseConfig(relativePath: string, signal?: AbortSignal, providedText?: string): Promise<{ path: string; format: string; values: Record<string, unknown>; status: string }> {
+    await this.loadIgnorePolicy(signal)
     const decision = this.beginAction('parse-config', relativePath)
-    if (!decision.allowed) return { path: relativePath, format: 'unknown', values: {}, status: 'safety-skipped' }
+    if (!decision.allowed || !this.eligiblePath(relativePath)) return { path: relativePath, format: 'unknown', values: {}, status: 'safety-skipped' }
     const read = providedText === undefined ? await this.readText(relativePath, signal) : { text: providedText, status: 'confirmed' as const }
     if (!read.text) return { path: relativePath, format: 'unknown', values: {}, status: read.status }
     const extension = path.extname(relativePath).toLowerCase()
@@ -129,13 +157,14 @@ export class RepositoryScanner {
 
   async parseAst(relativePath: string, signal?: AbortSignal, providedText?: string): Promise<AstParseResult> {
     if (signal?.aborted) return astResult(relativePath, 'interrupted', 'unavailable', 'user interrupted AST analysis')
+    await this.loadIgnorePolicy(signal)
     const decision = this.beginAction('parse-ast', relativePath)
     if (!decision.allowed) {
       const status = decision.reason.includes('budget') ? 'budget-exhausted' : 'safety-skipped'
       return astResult(relativePath, status, 'unavailable', decision.reason)
     }
-    const absolutePath = assertWorkspacePath(this.config.workspaceRoot, relativePath)
-    const normalized = normalizeRelative(this.config.workspaceRoot, absolutePath)
+    const normalized = relativeReaderPath(this.reader, relativePath)
+    if (!this.eligiblePath(normalized)) return astResult(normalized, this.exhausted ? 'budget-exhausted' : 'safety-skipped', 'unavailable', 'path is outside the readable analysis policy')
     if (!isPathCoveredByScope(normalized, this.config.scope)) {
       this.skip(normalized, 'path is outside confirmed analysis scope')
       return astResult(normalized, 'safety-skipped', 'unavailable', 'path is outside confirmed analysis scope')
@@ -155,24 +184,37 @@ export class RepositoryScanner {
       skipped: [...this.skipped],
       failures: [...this.failures],
       audits: [...this.audits],
+      ignorePolicy: { mode: this.config.respectGitIgnore ? 'root-positive-patterns' : 'disabled', fingerprint: this.ignoreHash, unsupportedRuleCount: this.ignore.unsupported, nestedPoliciesObserved: this.nestedPoliciesObserved },
       budget: { candidateFiles: this.candidateFiles, readBytes: this.readBytes, actions: this.actionCount, exhausted: this.exhausted },
     }
   }
 
-  private async walk(relativeDir: string, signal?: AbortSignal): Promise<void> {
+  private async walk(relativeDir: string, signal?: AbortSignal, explicitScope = false): Promise<void> {
     if (signal?.aborted || this.exhausted) return
-    const absoluteDir = assertWorkspacePath(this.config.workspaceRoot, relativeDir)
+    relativeDir = relativeReaderPath(this.reader, relativeDir)
+    if (relativeDir !== '.' && (this.ignore.ignored(relativeDir) || isSensitivePath(relativeDir, this.config.sensitiveFilePatterns) ||
+      this.config.excludeDirs.some(dir => relativeDir.split('/').includes(dir) || relativeDir === dir || relativeDir.startsWith(`${dir}/`)))) {
+      this.skip(relativeDir, 'scope is excluded by the readable analysis policy'); return
+    }
+    if (++this.visitedDirectories > this.config.maxCandidateFiles) { this.exhausted = true; this.skip(relativeDir, 'directory discovery budget exhausted'); return }
     let entries
     try {
-      entries = await fs.readdir(absoluteDir, { withFileTypes: true })
+      const scopeInfo = explicitScope ? await this.reader.stat(relativeDir, signal) : undefined
+      if (scopeInfo?.type === 'directory' && this.ignore.ignored(relativeDir, true)) { this.skip(relativeDir, 'scope directory is ignored'); return }
+      if (scopeInfo?.type === 'file') {
+        entries = [{ name: path.posix.basename(relativeDir), type: 'file' as const }]
+        relativeDir = path.posix.dirname(relativeDir)
+      } else entries = await this.reader.list(relativeDir, signal, this.config.maxCandidateFiles)
     } catch (error) {
-      this.failures.push({ path: relativeDir, reason: errorMessage(error) })
+      this.failures.push({ path: relativeDir, reason: errorMessage(error, this.reader.kind === 'harness') })
       return
     }
     for (const entry of entries) {
       if (signal?.aborted || this.exhausted) return
-      const relativePath = normalizeRelative(this.config.workspaceRoot, path.join(absoluteDir, entry.name))
-      if (entry.isDirectory()) {
+      if (!entry.name || entry.name === '.' || entry.name === '..' || /[\\/\u0000-\u001f]/.test(entry.name)) throw new Error('Repository listing contains an unsafe name')
+      const relativePath = relativeDir === '.' ? entry.name : `${relativeDir}/${entry.name}`
+      if (this.ignore.ignored(relativePath, entry.type === 'directory')) { this.skip(relativePath, 'root .gitignore positive pattern'); continue }
+      if (entry.type === 'directory') {
         if (this.config.excludeDirs.includes(entry.name) || this.config.excludeDirs.some((excluded) => relativePath === excluded || relativePath.startsWith(`${excluded}/`))) {
           this.skip(relativePath, 'excluded directory')
           continue
@@ -180,12 +222,12 @@ export class RepositoryScanner {
         await this.walk(relativePath, signal)
         continue
       }
-      if (entry.isSymbolicLink()) {
-        const check = checkWorkspacePath(this.config.workspaceRoot, relativePath)
-        this.skip(relativePath, check.allowed ? 'symbolic link skipped by default' : 'external symbolic link denied')
+      if (entry.type === 'symlink' || entry.type === 'other') {
+        this.skip(relativePath, entry.type === 'symlink' ? 'symbolic link skipped by default' : 'not a regular file')
         continue
       }
       this.candidateFiles += 1
+      if (entry.name === '.gitignore' && relativeDir !== '.') this.nestedPoliciesObserved++
       if (this.candidateFiles > this.config.maxCandidateFiles) {
         this.exhausted = true
         this.skip(relativePath, 'candidate file budget exhausted')
@@ -198,14 +240,15 @@ export class RepositoryScanner {
         continue
       }
       try {
-        const stat = await fs.stat(path.join(absoluteDir, entry.name))
+        const stat = await this.reader.stat(relativePath, signal)
+        if (stat?.type !== 'file' || stat.size === undefined || !Number.isSafeInteger(stat.size) || stat.size < 0) throw new Error('regular file byte size is unavailable')
         const kind = stat.size > this.config.maxFileBytes ? 'too-large' : 'text'
         const fingerprint = createFingerprint(relativePath, stat)
         this.scanned.push({ relativePath, sizeBytes: stat.size, kind, fingerprint })
         if (kind === 'too-large') this.skip(relativePath, 'file exceeds maxFileBytes')
       } catch (error) {
         this.scanned.push({ relativePath, sizeBytes: 0, kind: 'unreadable' })
-        this.failures.push({ path: relativePath, reason: errorMessage(error) })
+        this.failures.push({ path: relativePath, reason: errorMessage(error, this.reader.kind === 'harness') })
       }
     }
   }
@@ -213,14 +256,47 @@ export class RepositoryScanner {
   private beginAction(action: ToolAction, relativePath: string) {
     if (this.actionCount >= this.config.maxActions) {
       this.exhausted = true
-      const decision = decideAction(this.config, action, relativePath)
+      const decision = decideAction(this.config, action, relativePath, false, (_root, requested) => this.reader.checkPath(requested))
       this.audits.push({ ...auditDecision(decision, 'ReAct action budget exhausted'), action: 'budget', status: 'skipped', reason: 'ReAct action budget exhausted' })
       return { ...decision, allowed: false, reason: 'ReAct action budget exhausted' }
     }
     this.actionCount += 1
-    const decision = decideAction(this.config, action, relativePath)
+    const decision = decideAction(this.config, action, relativePath, false, (_root, requested) => this.reader.checkPath(requested))
     this.audits.push(auditDecision(decision))
     return decision
+  }
+
+  private async loadIgnorePolicy(signal?: AbortSignal): Promise<void> {
+    if (this.ignoreLoaded || !this.config.respectGitIgnore || signal?.aborted) return
+    this.ignoreLoaded = true
+    try {
+      const info = await this.reader.stat('.gitignore', signal)
+      if (!info) return
+      if (info.type !== 'file' || info.size === undefined || !Number.isSafeInteger(info.size) || info.size < 0 || info.size > Math.min(16_384, this.config.maxFileBytes)) throw new Error('root .gitignore lacks bounded regular-file metadata')
+      if (!info.version && ![info.mtimeMs, info.ctimeMs].every(Number.isFinite)) throw new Error('root .gitignore lacks stable version metadata')
+      if (info.size > this.config.maxTotalBytes - this.readBytes) throw new Error('root .gitignore exceeds the remaining read budget')
+      const decision = this.beginAction('read', '.gitignore')
+      if (!decision.allowed) throw new Error(decision.reason)
+      const readCap = info.size
+      this.readBytes += readCap
+      const bytes = await this.reader.read('.gitignore', readCap, signal)
+      const after = await this.reader.stat('.gitignore', signal)
+      if (bytes.byteLength !== info.size || bytes.byteLength > 16_384 || this.readBytes > this.config.maxTotalBytes || after?.type !== 'file' || after.size !== info.size || info.version !== after.version || info.mtimeMs !== after.mtimeMs || info.ctimeMs !== after.ctimeMs) throw new Error('root .gitignore changed or exceeded its read cap')
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+      this.ignore = parseRootIgnorePolicy(text)
+      this.ignoreHash = createHash('sha256').update(text).digest('hex')
+    } catch (error) {
+      this.failures.push({ path: '.gitignore', reason: errorMessage(error, this.reader.kind === 'harness') })
+      this.exhausted = true
+    }
+  }
+
+  private eligiblePath(requestedPath: string): boolean {
+    const check = this.reader.checkPath(requestedPath)
+    if (!check.allowed || this.exhausted) return false
+    const normalized = relativeReaderPath(this.reader, requestedPath)
+    return isPathCoveredByScope(normalized, this.config.scope) && !isSensitivePath(normalized, this.config.sensitiveFilePatterns) &&
+      !this.ignore.ignored(normalized) && !this.config.excludeDirs.some(directory => normalized.split('/').includes(directory) || normalized === directory || normalized.startsWith(`${directory}/`))
   }
 
   private deniedRead(relativePath: string, reason: string): ReadResult {
@@ -257,13 +333,10 @@ function astResult(relativePath: string, status: AstParseResult['status'], parse
   return { relativePath, status, parser, observationCount: 0, observations: [], reason }
 }
 
-function createFingerprint(relativePath: string, stat: { size: number; mtimeMs: number; ctimeMs: number }): EvidenceFingerprint | undefined {
-  if (![stat.size, stat.mtimeMs, stat.ctimeMs].every(Number.isFinite)) return undefined
-  return { relativePath, sizeBytes: stat.size, mtimeMs: stat.mtimeMs, ctimeMs: stat.ctimeMs }
-}
-
-function normalizeRelative(root: string, absolutePath: string): string {
-  return path.relative(root, absolutePath).split(path.sep).join('/') || '.'
+function createFingerprint(relativePath: string, stat: ReaderStat): EvidenceFingerprint | undefined {
+  if (stat.size === undefined || !Number.isFinite(stat.size)) return undefined
+  if (!stat.version && ![stat.mtimeMs, stat.ctimeMs].every(Number.isFinite)) return undefined
+  return { relativePath, sizeBytes: stat.size, mtimeMs: stat.mtimeMs ?? 0, ctimeMs: stat.ctimeMs ?? 0, version: stat.version }
 }
 
 function looksBinary(buffer: Buffer): boolean {
@@ -290,6 +363,7 @@ function summarizeLineConfig(text: string): Record<string, unknown> {
   return values
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function errorMessage(error: unknown, provider = false): string {
+  if (provider) return 'Harness filesystem operation failed validation or could not complete'
+  return redactSecretLike(error instanceof Error ? error.message : String(error)).text.slice(0, 500)
 }

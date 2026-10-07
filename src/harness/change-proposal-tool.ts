@@ -1,3 +1,4 @@
+import { withJsonOutput } from './json-output.ts'
 import type { ChangeProposalRequest } from '../types.ts'
 import type { ChangeProposalCommitAuthorizer, ChangeProposalLandingAuthorizer, ChangeProposalVerificationRunner } from '../repository/change-proposal.ts'
 import type { HarnessTool, HarnessToolExecution } from './public.ts'
@@ -9,7 +10,7 @@ export function createChangeProposalTool(
   commitAuthorizer?: ChangeProposalCommitAuthorizer,
   landingAuthorizer?: ChangeProposalLandingAuthorizer,
 ): HarnessTool {
-  return {
+  return withJsonOutput({
     name: 'repo_atlas_change_proposal',
     description: '查询、列举、实时检查、landing/release preflight、准备、审阅、导出、确认、拒绝或释放当前 session 的隔离代码变更提案；支持显式确认后将有界补丁应用到隔离 worktree、创建本地 detached-worktree commit，并可在 Harness 审批后 fast-forward 落地到 source workspace；不会解决冲突、访问 remote 或推送。',
     parameters: {
@@ -45,9 +46,12 @@ export function createChangeProposalTool(
     async execute(input: unknown, execution: HarnessToolExecution) {
       const resolved = resolveRuntime(execution)
       if (!resolved.ok) return { status: 'blocked', operationStatus: 'blocked', reason: resolved.reason }
+      const request = proposalInput(input)
+      if (resolved.runtime.analysis?.reader?.hostBacked === false && !['inspect', 'list', 'history', 'inspect-recovery'].includes(request.action)) {
+        return { status: 'blocked', operationStatus: 'blocked', reason: 'local Git lifecycle requires a verified host-backed repository; provider analysis does not authorize host Git' }
+      }
       const manager = resolved.runtime.proposalManager
       const verificationRunner = createVerificationRunner(resolved.runtime)
-      const request = proposalInput(input)
       const signal = resolved.execution.signal
       if (request.action === 'list') return manager.list({ limit: request.invalidLimit ? Number.NaN : request.limit })
       if (request.action === 'history') {
@@ -135,7 +139,7 @@ export function createChangeProposalTool(
       if (request.action === 'reject') return manager.reject(request.proposalId)
       return manager.release(request.proposalId, signal)
     },
-  }
+  })
 }
 
 function proposalInput(input: unknown): {

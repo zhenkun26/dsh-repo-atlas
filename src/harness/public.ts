@@ -64,6 +64,8 @@ export interface HarnessSandboxPolicyService {
 
 export interface RepoAtlasPluginConfig extends Partial<Omit<RepoAtlasConfig, 'workspaceRoot'>> {
   workspaceRoot?: string
+  readerMode?: 'auto' | 'local' | 'harness'
+  symbols?: { enabled?: boolean; timeoutMs?: number; maxResults?: number }
 }
 
 export interface RepoAtlasToolResult {

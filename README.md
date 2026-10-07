@@ -18,6 +18,7 @@
 
 - Scans a confirmed workspace with path, content, sensitive-file, and budget limits.<br>在路径、内容、敏感文件和预算限制下扫描已确认的 workspace。
 - Produces structured evidence, Markdown reports, architecture observations, and a recommended reading order.<br>生成结构化证据、Markdown 报告、架构观察和推荐阅读顺序。
+- Searches retained evidence and traces possible file-level change impact through static imports, with explicit snapshot and coverage limits.<br>检索保留的证据，并沿静态导入关系追踪文件级潜在影响，明确标注快照与覆盖范围限制。
 - Tracks session-only proposals, patch review/verification, isolated commits, landing preflight, recovery guidance, and release preflight.<br>追踪仅限当前 session 的提案、补丁审阅/验证、隔离 commit、landing preflight、恢复建议和 release preflight。
 
 **What does it not do automatically? / 它不会自动做什么？**
@@ -44,6 +45,78 @@ The default path is read-only. It does not silently generate or apply patches, c
 The existing Harness tool names remain stable: `repo_atlas_analyze`, `repo_atlas_change_proposal`, and the opt-in `repo_atlas_controlled_action`.<br>
 现有 Harness 工具名保持稳定：`repo_atlas_analyze`、`repo_atlas_change_proposal`，以及 opt-in 的 `repo_atlas_controlled_action`。
 
+## Evidence queries / 证据查询
+
+After `repo_atlas_analyze` completes in a Harness session, use these native tools:<br>
+在 Harness 会话中完成 `repo_atlas_analyze` 后，可使用以下原生工具：
+
+| Tool / 工具 | Example input / 输入示例 | Result / 结果 |
+|---|---|---|
+| `repo_atlas_search` | `{"query":"server","limit":10}` | Ranked evidence ids, paths, locators and excerpts / 排序后的证据 ID、路径、定位和摘录 |
+| `repo_atlas_impact` | `{"targets":["src/server.ts"],"maxDepth":3,"limit":50}` | Possible dependents and evidence chains / 潜在依赖方与证据链 |
+
+Queries read the latest retained snapshot in the exact calling session. They do not
+refresh files. Rerun analysis after edits. Empty results do not prove no impact;
+aliases, dynamic imports, runtime calls, and unobserved files remain outside this
+file-level analysis.<br>
+查询只读取当前调用会话保留的最新分析快照，不刷新文件；修改后需重新分析。空结果不代表没有影响；别名、动态导入、运行时调用和未观察文件不在本轮文件级分析范围内。
+
+The current Harness source review and implementation stages are documented in the
+[October plan](docs/replanning-2026-10.md). The reviewed `0.2.1-alpha.1` source is
+experimentally verified on macOS through its native tool runtime and authenticated
+Web startup; the historical accepted pin remains unchanged.<br>
+当前 Harness 源码审查和实施阶段见[十月重规划](docs/replanning-2026-10.md)。`0.2.1-alpha.1` 已在 macOS 通过原生工具运行和带认证的 Web 启动验证；历史正式兼容 pin 保持不变。
+
+## Readers, source freshness and optional symbols / 读取器、源码新鲜度与可选符号导航
+
+Analysis defaults to `readerMode: "auto"`: use the configured Harness filesystem
+when present, otherwise the local read-only reader. A selected provider failure
+blocks analysis instead of falling back. Evidence paths stay repository-relative.
+Provider evidence authorizes local Git/checks only when host mapping is explicitly
+verified; older providers without that capability remain readable. Use explicit
+`readerMode: "local"` for an intentionally local workflow.<br>
+分析默认使用 `readerMode: "auto"`：有 Harness 文件系统时使用该服务，否则使用本地只读读取器。
+选定服务失败会阻止分析，不会退回本地读取。证据保留仓库相对路径；只有明确验证宿主映射后，
+服务证据才能用于本地 Git 或检查。旧服务没有映射能力时仍可读取；有意使用本地工作流时可明确设置 `readerMode: "local"`。
+
+Full redacted source is retained separately from display excerpts within the
+20 MiB default source-material cap. Search ranks by lexical score, then prefers
+distinct files. `cacheValidation: "metadata"` permits version/metadata reuse;
+`"content"` rereads within the same budgets. Content hashes identify redacted
+snapshots, not runtime correctness. Root `.gitignore` supports a bounded positive
+pattern subset; negation, escapes, character classes, whitespace patterns and
+nested rules remain explicit incomplete coverage. Sensitive-path policy and
+configured exclusions still apply.<br>
+完整脱敏源码与展示摘要分开保存，默认材料上限为 20 MiB。搜索按词法分数排序，优先返回不同文件。
+`cacheValidation: "metadata"` 允许版本或元数据复用；`"content"` 在同样预算内重新读取。
+内容哈希标识脱敏快照，不证明运行正确性。根目录 `.gitignore` 仅支持有界正向模式；否定、转义、
+字符类、含空白模式及嵌套规则会明确标注为覆盖不完整。敏感路径规则和配置排除项仍然生效。
+
+Optional plugin configuration / 可选插件配置：
+
+```json
+{
+  "readerMode": "auto",
+  "cacheValidation": "metadata",
+  "respectGitIgnore": true,
+  "symbols": { "enabled": true, "timeoutMs": 5000, "maxResults": 50 }
+}
+```
+
+`repo_atlas_symbols` is registered only with `symbols.enabled: true`. It uses
+Harness's configured LSP and installs no server. Example input:
+`{"operation":"findReferences","sourcePath":"src/server.ts","line":3,"character":8}`.
+Supported operations are `goToDefinition`, `findReferences`, `goToImplementation`
+and `hover`. Coordinates are one-based UTF-16; returned ranges are half-open.
+The query source must match retained material and have an unredacted cursor basis.
+External, sensitive and unobserved results are filtered. Missing services, changed
+source, cancellation and timeout return unavailable. Live LSP/UI acceptance is a
+separate gate.<br>
+仅在 `symbols.enabled: true` 时注册 `repo_atlas_symbols`，使用 Harness 已配置的 LSP，不安装服务器。
+输入示例与支持操作如上；坐标为从 1 开始的 UTF-16，返回区间为左闭右开。
+查询源码须与保留材料一致，且脱敏不能改变定位坐标。外部、敏感和未观察路径会被过滤；
+缺少服务、源码变化、取消或超时会返回不可用。真实 LSP 与界面验收仍是独立门禁。
+
 ## Quick start / 快速开始
 
 ### Requirements / 环境要求
@@ -54,8 +127,8 @@ The existing Harness tool names remain stable: `repo_atlas_analyze`, `repo_atlas
 
 ### Load the plugin from a source checkout / 从源码 checkout 加载插件
 
-The project is currently source-first and private. Build the local checkout, then add it to a Harness profile. The GitHub repository is named `dsh-repo-atlas`; the product brand remains `RepoAtlas`, and the package and visible Harness bundle are named `dsh-repo-atlas` and `dsh-repo-atlas/harness`.<br>
-当前项目采用源码优先且保持 private。先构建本地 checkout，再将其添加到 Harness profile。GitHub 仓库名为 `dsh-repo-atlas`；产品品牌仍为 `RepoAtlas`，包名和 Harness 中显示的 bundle 名称分别是 `dsh-repo-atlas` 与 `dsh-repo-atlas/harness`。
+The repository is public and distribution remains source-first. `package.json` keeps `private: true` to prevent npm publication. Build the local checkout, then add it to a Harness profile. The GitHub repository is named `dsh-repo-atlas`; the product brand remains `RepoAtlas`, and the package and visible Harness bundle are named `dsh-repo-atlas` and `dsh-repo-atlas/harness`.<br>
+仓库已公开，分发仍采用源码优先；`package.json` 保留 `private: true` 以防止 npm 发布。先构建本地 checkout，再将其添加到 Harness profile。GitHub 仓库名为 `dsh-repo-atlas`；产品品牌仍为 `RepoAtlas`，包名和 Harness 中显示的 bundle 名称分别是 `dsh-repo-atlas` 与 `dsh-repo-atlas/harness`。
 
 ```bash
 git clone https://github.com/zhenkun26/dsh-repo-atlas.git
@@ -84,10 +157,17 @@ npm run typecheck
 npm run lint
 npm run build
 npm run verify:built-artifact
+npm run evaluate:repository
 ```
 
-`verify:built-artifact` creates a task-owned tarball, installs it offline into a temporary consumer, and imports `dsh-repo-atlas` and `dsh-repo-atlas/harness`. It is local artifact evidence, not npm publication.<br>
-`verify:built-artifact` 会创建 task-owned tarball，在临时 consumer 中离线安装，并 import `dsh-repo-atlas` 与 `dsh-repo-atlas/harness`。它只是本地产物证据，不代表 npm 发布。
+Builds first create a fresh package under ignored `.codex/artifacts/build-*` and retain it on success or failure. Normal build then updates root `dist/`; unexpected prior files or symlinks stop that projection. Use `npm run build -- --isolated` to build a separate package without projecting root `dist/`; its printed package path can be loaded into Harness. Artifacts are retained for inspection and require user-managed cleanup.<br>
+构建先在 ignored `.codex/artifacts/build-*` 下生成独立 package，成功或失败均保留。普通构建随后更新根目录 `dist/`；发现不属于本次构建的旧文件或符号链接时会停止写入。可用 `npm run build -- --isolated` 生成独立 package，不更新根目录 `dist/`；输出的 package 路径可以加载到 Harness。产物保留供检查，清理需由用户管理。
+
+`verify:built-artifact` packs only a fresh isolated package, installs it offline into a new consumer with lifecycle scripts disabled, and imports `dsh-repo-atlas` and `dsh-repo-atlas/harness`. It retains all outputs and provides local artifact evidence, not npm publication.<br>
+`verify:built-artifact` 仅打包新的独立 package，禁用 lifecycle scripts 后在全新 consumer 中离线安装，并 import `dsh-repo-atlas` 与 `dsh-repo-atlas/harness`。它保留全部产物，只提供本地产物证据，不代表 npm 发布。
+
+`evaluate:repository` records default-budget precision/recall and coverage using a [synthetic labelled corpus](evaluation/README.md). Low-recall results remain visible; the labels are pending human review.<br>
+`evaluate:repository` 使用[合成标注语料](evaluation/README.md)记录默认预算下的精确率、召回率和覆盖状态，保留低召回结果；标签仍待人工审阅。
 
 Maintainers can run the full repository gates with:<br>
 维护者可以运行完整仓库门禁：
@@ -159,6 +239,9 @@ When citing, integrating, documenting, or deriving from this project, please ide
 在引用、集成、文档说明或基于本项目衍生时，请标注 **RepoAtlas / 代码星图** 并链接 <https://github.com/zhenkun26/dsh-repo-atlas>。这项来源说明单独记录在 [NOTICE.md](NOTICE.md) 中，不会向 MIT License 增加额外法律条件。
 
 ## Development API / 开发 API
+
+Dependency observations expose optional `moduleSpecifierExact`. Graph resolution requires `true`; older producers without the flag remain unresolved. Exact values preserve whitespace within the existing 160 UTF-16 code-unit bound, while summaries remain display text. Schema-3 caches are invalidated and reparsed under schema 4.
+模块观察新增可选 `moduleSpecifierExact`；只有 `true` 才可用于依赖解析，旧 producer 没有此标记时保留为未解析。精确值在既有 160 个 UTF-16 单元上限内保留空白，摘要仅用于展示；schema-3 缓存失效后在 schema 4 下重新解析。
 
 The core API can be used from a source checkout for experiments and tests:<br>
 核心 API 可以从源码 checkout 调用，用于实验和测试：

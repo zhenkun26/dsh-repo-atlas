@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { createConfig } from '../config.ts'
 import { ChangeProposalManager } from '../repository/change-proposal.ts'
-import type { RepoAtlasConfig } from '../types.ts'
+import type { AnalysisSession, RepoAtlasConfig } from '../types.ts'
 import type { HarnessSession, HarnessToolExecution, RepoAtlasPluginConfig } from './public.ts'
 
 export interface HarnessSessionRuntime {
@@ -9,6 +9,7 @@ export interface HarnessSessionRuntime {
   workspaceRoot: string
   config: RepoAtlasConfig
   proposalManager: ChangeProposalManager
+  analysis?: AnalysisSession
 }
 
 export type HarnessSessionRuntimeResolution =

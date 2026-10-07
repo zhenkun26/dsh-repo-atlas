@@ -1,12 +1,30 @@
-import { execFile, spawn } from 'node:child_process'
-import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
-import fs from 'node:fs/promises'
-import os from 'node:os'
+import { createNodeGitWorktreeAdapter } from './git-worktree-adapter.ts'
+export { createNodeGitWorktreeAdapter } from './git-worktree-adapter.ts'
+import { PatchApplicationError, CommitOperationError, LandingOperationError, LandingInspectionError } from './change-proposal-errors.ts'
+import {
+  validateTargets,
+  deriveRisks,
+  createProposalDigest,
+  sameDigest,
+  isSafeGitRevision,
+  validatePatch,
+  createPatchDigest,
+  createCommitDigest,
+  createLandingDigest,
+  samePathSet,
+  clonePatchSummary,
+  boundVerification,
+  workspaceRelativeRoot,
+  workspaceChangedPaths,
+  repositoryRelativePaths,
+  normalizeCommitMessage,
+  boundedRedactedText,
+  boundedList,
+  redactError,
+} from './change-proposal-format.ts'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { promisify } from 'node:util'
-import { isSensitivePath, redactSecretLike } from '../safety/content-policy.ts'
-import { checkWorkspacePath, isWithin } from '../safety/path-policy.ts'
-import { isPathCoveredByScope } from './evidence-cache.ts'
+import { isWithin } from '../safety/path-policy.ts'
 import type {
   AnalysisSession,
   ChangeProposal,
@@ -31,25 +49,19 @@ import type {
   ChangeProposalListRequest,
   ChangeProposalListResult,
   ChangeProposalPatch,
-  ChangeProposalPatchFileSummary,
   ChangeProposalPatchRequest,
   ChangeProposalPatchExport,
-  ChangeProposalPatchSummary,
-  ChangeProposalOperation,
   ChangeProposalRequest,
   ChangeProposalRecoveryAction,
   ChangeProposalRecoveryRecommendation,
   ChangeProposalRecoveryResult,
   ChangeProposalResult,
   ChangeProposalSummary,
-  ChangeProposalTarget,
   ChangeProposalVerification,
   ChangeProposalVerifyPatchRequest,
   ChangeProposalWorktree,
   RepoAtlasConfig,
 } from '../types.ts'
-
-const execFileAsync = promisify(execFile)
 
 export interface ChangeProposalLimits {
   maxTargets: number
@@ -185,51 +197,6 @@ interface StoredLandingDraft {
 type ChangeProposalEventRecorder = (phase: ChangeProposalEventPhase, reason: string) => void
 
 const proposalEventRecorders = new WeakMap<ChangeProposal, ChangeProposalEventRecorder>()
-
-interface ParsedPatch {
-  canonicalText: string
-  summary: ChangeProposalPatchSummary
-}
-
-class PatchApplicationError extends Error {
-  readonly uncertain: boolean
-
-  constructor(message: string, uncertain: boolean) {
-    super(message)
-    this.name = 'PatchApplicationError'
-    this.uncertain = uncertain
-  }
-}
-
-class CommitOperationError extends Error {
-  readonly uncertain: boolean
-
-  constructor(message: string, uncertain: boolean) {
-    super(message)
-    this.name = 'CommitOperationError'
-    this.uncertain = uncertain
-  }
-}
-
-class LandingOperationError extends Error {
-  readonly uncertain: boolean
-
-  constructor(message: string, uncertain: boolean) {
-    super(message)
-    this.name = 'LandingOperationError'
-    this.uncertain = uncertain
-  }
-}
-
-class LandingInspectionError extends Error {
-  readonly targetUnavailable: boolean
-
-  constructor(message: string, targetUnavailable = false) {
-    super(message)
-    this.name = 'LandingInspectionError'
-    this.targetUnavailable = targetUnavailable
-  }
-}
 
 export interface ChangeProposalManagerOptions {
   adapter?: GitWorktreeAdapter
@@ -490,6 +457,7 @@ export class ChangeProposalManager {
     if (signal?.aborted) return blockedResult('interrupted', 'proposal preparation was interrupted before validation')
     const session = this.sessions.get(request.sessionId)
     if (!session) return blockedResult('blocked', 'the requested analysis session is not available in this session')
+    if (session.reader?.hostBacked === false) return blockedResult('blocked', 'provider evidence has no verified host mapping for local Git operations')
     if (!session.goal.confirmed) return blockedResult('blocked', 'a confirmed GoalSpec is required before preparing a change proposal')
     if (!request.intent.trim()) return blockedResult('blocked', 'a user-supplied change intent is required')
     if (!Array.isArray(request.targets) || request.targets.length === 0) return blockedResult('blocked', 'at least one target operation is required')
@@ -1098,481 +1066,6 @@ export class ChangeProposalManager {
   }
 }
 
-export function createNodeGitWorktreeAdapter(): GitWorktreeAdapter {
-  return {
-    async discover(workspaceRoot, signal) {
-      const resolvedWorkspace = await fs.realpath(path.resolve(workspaceRoot))
-      const repositoryRoot = path.resolve(await runGit(['-C', resolvedWorkspace, 'rev-parse', '--show-toplevel'], resolvedWorkspace, signal))
-      const baseRevision = await runGit(['-C', repositoryRoot, 'rev-parse', '--verify', 'HEAD^{commit}'], repositoryRoot, signal)
-      return { repositoryRoot, baseRevision }
-    },
-    async create(repositoryRoot, baseRevision, signal) {
-      const target = await fs.mkdtemp(path.join(os.tmpdir(), 'repo-atlas-proposal-'))
-      try {
-        await runGit(['-C', repositoryRoot, 'worktree', 'add', '--detach', target, baseRevision], repositoryRoot, signal)
-        const canonicalTarget = await fs.realpath(target)
-        const worktree: ChangeProposalWorktree = {
-          path: canonicalTarget,
-          baseRevision,
-          identity: worktreeIdentity(canonicalTarget),
-        }
-        const inspected = await this.inspect(repositoryRoot, worktree, signal)
-        if (inspected.identity !== worktree.identity) throw new Error('created worktree identity could not be verified')
-        return worktree
-      } catch (error) {
-        await fs.rm(target, { recursive: true, force: true }).catch(() => undefined)
-        throw error
-      }
-    },
-    async inspect(repositoryRoot, worktree, signal) {
-      const listing = await runGit(['-C', repositoryRoot, 'worktree', 'list', '--porcelain'], repositoryRoot, signal)
-      const canonicalTarget = await fs.realpath(worktree.path)
-      const record = parseWorktreeListing(listing, canonicalTarget)
-      if (!record) throw new Error('managed worktree is not present at the expected path')
-      const status = await runGit(['-C', worktree.path, 'status', '--porcelain', '--untracked-files=all'], worktree.path, signal)
-      const trackedChanges = await runGit(['-C', worktree.path, 'diff', '--name-only', '--no-ext-diff'], worktree.path, signal)
-      const stagedChanges = await runGit(['-C', worktree.path, 'diff', '--cached', '--name-only', '--no-ext-diff'], worktree.path, signal)
-      const untrackedChanges = await runGit(['-C', worktree.path, 'ls-files', '--others', '--exclude-standard'], worktree.path, signal)
-      return {
-        path: canonicalTarget,
-        identity: worktreeIdentity(canonicalTarget),
-        baseRevision: record.baseRevision,
-        dirty: status.length > 0,
-        changedPaths: uniquePaths([...trackedChanges.split('\n'), ...stagedChanges.split('\n'), ...untrackedChanges.split('\n')]),
-      }
-    },
-    async inspectSource(repositoryRoot, sourceWorkspaceRoot, signal) {
-      const canonicalWorkspace = await fs.realpath(path.resolve(sourceWorkspaceRoot))
-      const discoveredRoot = path.resolve(await runGit(['-C', canonicalWorkspace, 'rev-parse', '--show-toplevel'], canonicalWorkspace, signal))
-      if (path.resolve(repositoryRoot) !== discoveredRoot) throw new Error('source workspace repository root does not match the proposal repository')
-      const revision = await runGit(['-C', canonicalWorkspace, 'rev-parse', '--verify', 'HEAD^{commit}'], canonicalWorkspace, signal)
-      const status = await runGit(['-C', canonicalWorkspace, 'status', '--porcelain', '--untracked-files=all'], canonicalWorkspace, signal)
-      return { path: canonicalWorkspace, repositoryRoot: discoveredRoot, revision, dirty: status.length > 0 }
-    },
-    async inspectLanding(repositoryRoot, sourceWorkspaceRoot, expectedSourceRevision, commitRevision, signal) {
-      if (!isSafeGitRevision(expectedSourceRevision) || !isSafeGitRevision(commitRevision)) throw new LandingInspectionError('source or target revision is not a safe Git revision')
-      const source = await this.inspectSource(repositoryRoot, sourceWorkspaceRoot, signal)
-      let targetRevision: string
-      try {
-        targetRevision = await runGit(['-C', source.path, 'rev-parse', '--verify', `${commitRevision}^{commit}`], source.path, signal)
-        if (targetRevision !== commitRevision) throw new Error('target commit revision could not be resolved exactly')
-      } catch (error) {
-        throw new LandingInspectionError(`target commit is not locally resolvable: ${redactError(error)}`, true)
-      }
-      try {
-        const sourceIsAncestor = await isGitAncestor(source.path, source.revision, targetRevision, signal)
-        const targetIsAncestor = await isGitAncestor(source.path, targetRevision, source.revision, signal)
-        return { source, targetRevision, sourceIsAncestor, targetIsAncestor }
-      } catch (error) {
-        throw new LandingInspectionError(`local commit ancestry could not be inspected: ${redactError(error)}`)
-      }
-    },
-    async applyPatch(_repositoryRoot, worktree, patchText, workspaceRelativeRoot, signal) {
-      const patchCwd = path.resolve(worktree.path, workspaceRelativeRoot || '.')
-      if (!isWithin(worktree.path, patchCwd)) throw new Error('patch working directory is outside the managed worktree')
-      await runGitWithInput(['-C', patchCwd, 'apply', '--check', '--whitespace=error'], patchCwd, patchText, signal)
-      try {
-        await runGitWithInput(['-C', patchCwd, 'apply', '--whitespace=error'], patchCwd, patchText, signal)
-      } catch (error) {
-        throw new PatchApplicationError(redactError(error), true)
-      }
-    },
-    async commit(_repositoryRoot, worktree, repositoryRelativePaths, commitMessage, signal) {
-      const paths = uniquePaths(repositoryRelativePaths)
-      if (paths.length === 0 || paths.some((value) => !isSafeRepositoryRelativePath(value))) {
-        throw new CommitOperationError('commit paths are empty or outside the repository', false)
-      }
-      try {
-        await runGit(['-C', worktree.path, 'add', '--', ...paths], worktree.path, signal)
-        const staged = uniquePaths((await runGit(['-C', worktree.path, 'diff', '--cached', '--name-only', '--no-ext-diff'], worktree.path, signal)).split('\n'))
-        if (!samePathSet(staged, paths)) throw new Error('staged path set does not exactly match the declared commit paths')
-      } catch (error) {
-        throw new CommitOperationError(`commit staging failed: ${redactError(error)}`, false)
-      }
-      try {
-        await runGit(['-C', worktree.path, '-c', 'commit.gpgSign=false', 'commit', '--no-verify', '--no-gpg-sign', '-m', commitMessage], worktree.path, signal)
-        return await runGit(['-C', worktree.path, 'rev-parse', '--verify', 'HEAD^{commit}'], worktree.path, signal)
-      } catch (error) {
-        throw new CommitOperationError(`local commit result is unknown: ${redactError(error)}`, true)
-      }
-    },
-    async land(repositoryRoot, sourceWorkspaceRoot, expectedSourceRevision, commitRevision, signal) {
-      if (!isSafeGitRevision(expectedSourceRevision) || !isSafeGitRevision(commitRevision)) throw new LandingOperationError('source or target revision is not a safe Git revision', false)
-      let inspected: InspectedSourceWorktree
-      try {
-        inspected = await this.inspectSource(repositoryRoot, sourceWorkspaceRoot, signal)
-      } catch (error) {
-        throw new LandingOperationError(`source landing precondition inspection failed: ${redactError(error)}`, false)
-      }
-      if (inspected.revision !== expectedSourceRevision || inspected.dirty) throw new LandingOperationError('source workspace is not clean at the expected base revision', false)
-      try {
-        const resolvedTarget = await runGit(['-C', inspected.path, 'rev-parse', '--verify', `${commitRevision}^{commit}`], inspected.path, signal)
-        if (resolvedTarget !== commitRevision) throw new Error('target commit revision could not be resolved exactly')
-      } catch (error) {
-        throw new LandingOperationError(`target commit is not locally resolvable: ${redactError(error)}`, false)
-      }
-      try {
-        await runGit(['-C', inspected.path, 'merge', '--ff-only', '--no-verify', '--no-edit', commitRevision], inspected.path, signal)
-      } catch (error) {
-        throw new LandingOperationError(`source fast-forward landing failed: ${redactError(error)}`, isUncertainGitFailure(error, signal))
-      }
-      try {
-        return await runGit(['-C', inspected.path, 'rev-parse', '--verify', 'HEAD^{commit}'], inspected.path, signal)
-      } catch (error) {
-        throw new LandingOperationError(`source landing result is unknown: ${redactError(error)}`, true)
-      }
-    },
-    async remove(repositoryRoot, worktree, signal) {
-      await runGit(['-C', repositoryRoot, 'worktree', 'remove', worktree.path], repositoryRoot, signal)
-    },
-  }
-}
-
-function validateTargets(
-  requests: readonly { relativePath: string; operation: ChangeProposalOperation; rationale?: string }[],
-  session: AnalysisSession,
-  config: RepoAtlasConfig,
-  limits: ChangeProposalLimits,
-): { targets: ChangeProposalTarget[]; limitations: string[] } {
-  const targets: ChangeProposalTarget[] = []
-  const limitations: string[] = []
-  const seen = new Set<string>()
-  for (const request of requests) {
-    if (targets.length >= limits.maxTargets) {
-      limitations.push('proposal target budget exhausted')
-      break
-    }
-    const rawPath = String(request.relativePath ?? '')
-    const check = checkWorkspacePath(session.workspaceRoot, rawPath)
-    const normalized = check.allowed ? path.relative(session.workspaceRoot, check.absolutePath).replaceAll(path.sep, '/') || '.' : rawPath.replaceAll('\\', '/')
-    if (seen.has(normalized)) {
-      limitations.push(`duplicate target skipped: ${normalized}`)
-      continue
-    }
-    seen.add(normalized)
-    const operation = request.operation
-    const rationale = boundedRedactedText(request.rationale ?? '用户未提供额外理由', limits.maxTextBytes)
-    if (!isProposalOperation(operation)) {
-      limitations.push(`${normalized}: unsupported target operation`)
-      continue
-    }
-    if (!check.allowed) {
-      targets.push({ relativePath: normalized, operation, rationale, status: 'uncovered', reason: check.reason })
-      limitations.push(`${normalized}: ${check.reason}`)
-      continue
-    }
-    if (isSensitivePath(normalized, config.sensitiveFilePatterns)) {
-      targets.push({ relativePath: normalized, operation, rationale, status: 'uncovered', reason: 'sensitive path is not eligible for proposal targets' })
-      limitations.push(`${normalized}: sensitive path is not eligible`)
-      continue
-    }
-    if (config.excludeDirs.includes(normalized.split('/')[0] ?? '')) {
-      targets.push({ relativePath: normalized, operation, rationale, status: 'uncovered', reason: 'excluded directory is not eligible for proposal targets' })
-      limitations.push(`${normalized}: excluded directory is not eligible`)
-      continue
-    }
-    if (!isPathCoveredByScope(normalized, session.goal.scope)) {
-      targets.push({ relativePath: normalized, operation, rationale, status: 'uncovered', reason: 'target is outside the confirmed GoalSpec scope' })
-      limitations.push(`${normalized}: outside confirmed scope`)
-      continue
-    }
-    targets.push({ relativePath: normalized, operation, rationale, status: 'confirmed' })
-  }
-  return { targets, limitations }
-}
-
-function deriveRisks(targets: readonly ChangeProposalTarget[]): string[] {
-  return targets.filter((target) => target.status === 'confirmed' && target.operation === 'delete').map((target) => `delete operation requires explicit review: ${target.relativePath}`)
-}
-
-function createProposalDigest(proposal: ChangeProposal): string {
-  const payload = JSON.stringify({
-    proposalId: proposal.proposalId,
-    sessionId: proposal.sessionId,
-    workspaceRoot: path.resolve(proposal.workspaceRoot),
-    baseRevision: proposal.baseRevision,
-    expiresAt: proposal.expiresAt,
-    intent: proposal.intent,
-    targets: proposal.targets,
-    evidenceIds: proposal.evidenceIds,
-  })
-  return createHash('sha256').update(payload).digest('hex')
-}
-
-function sameDigest(expected: string, received: string): boolean {
-  if (!/^[a-f0-9]{64}$/.test(received)) return false
-  const left = Buffer.from(expected, 'hex')
-  const right = Buffer.from(received, 'hex')
-  return left.length === right.length && timingSafeEqual(left, right)
-}
-
-function isSafeGitRevision(value: string): boolean {
-  return /^[a-f0-9]{40,64}$/.test(value)
-}
-
-function isUncertainGitFailure(error: unknown, signal?: AbortSignal): boolean {
-  if (signal?.aborted) return true
-  if (!error || typeof error !== 'object') return true
-  const candidate = error as { code?: unknown; killed?: unknown; signal?: unknown; name?: unknown }
-  return candidate.name === 'AbortError' || candidate.code === 'ETIMEDOUT' || candidate.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' || candidate.killed === true || typeof candidate.signal === 'string'
-}
-
-function worktreeIdentity(worktreePath: string): string {
-  return createHash('sha256').update(path.resolve(worktreePath)).digest('hex').slice(0, 32)
-}
-
-function parseWorktreeListing(listing: string, targetPath: string): { path: string; baseRevision: string } | undefined {
-  const blocks = listing.split(/\n(?=worktree )/).map((block) => block.split('\n'))
-  for (const lines of blocks) {
-    const worktreePath = lines.find((line) => line.startsWith('worktree '))?.slice('worktree '.length)
-    const baseRevision = lines.find((line) => line.startsWith('HEAD '))?.slice('HEAD '.length)
-    if (worktreePath && baseRevision && path.resolve(worktreePath) === path.resolve(targetPath)) return { path: worktreePath, baseRevision }
-  }
-  return undefined
-}
-
-async function runGit(args: readonly string[], cwd: string, signal?: AbortSignal): Promise<string> {
-  const result = await execFileAsync('git', [...args], {
-    cwd,
-    shell: false,
-    windowsHide: true,
-    timeout: 15_000,
-    maxBuffer: 128 * 1024,
-    signal,
-  })
-  return result.stdout.trim()
-}
-
-async function isGitAncestor(cwd: string, ancestor: string, descendant: string, signal?: AbortSignal): Promise<boolean> {
-  try {
-    await execFileAsync('git', ['-C', cwd, 'merge-base', '--is-ancestor', ancestor, descendant], {
-      cwd,
-      shell: false,
-      windowsHide: true,
-      timeout: 15_000,
-      maxBuffer: 128 * 1024,
-      signal,
-    })
-    return true
-  } catch (error) {
-    const code = error && typeof error === 'object' ? (error as { code?: unknown }).code : undefined
-    if (code === 1) return false
-    throw error
-  }
-}
-
-function runGitWithInput(args: readonly string[], cwd: string, input: string, signal?: AbortSignal): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new Error('Git operation was interrupted'))
-      return
-    }
-    const child = spawn('git', [...args], {
-      cwd,
-      shell: false,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    let stdout = ''
-    let stderr = ''
-    let settled = false
-    const finish = (callback: () => void): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeout)
-      signal?.removeEventListener('abort', onAbort)
-      callback()
-    }
-    const onAbort = (): void => {
-      child.kill('SIGTERM')
-      finish(() => reject(new Error('Git operation was interrupted')))
-    }
-    const timeout = setTimeout(() => {
-      child.kill('SIGTERM')
-      finish(() => reject(new Error('Git operation timed out')))
-    }, 15_000)
-    child.stdout.on('data', (chunk: Buffer | string) => {
-      stdout += chunk.toString()
-      if (Buffer.byteLength(stdout) > 128 * 1024) {
-        child.kill('SIGTERM')
-        finish(() => reject(new Error('Git output exceeded the bounded limit')))
-      }
-    })
-    child.stderr.on('data', (chunk: Buffer | string) => {
-      stderr += chunk.toString()
-      if (Buffer.byteLength(stderr) > 128 * 1024) {
-        child.kill('SIGTERM')
-        finish(() => reject(new Error('Git error output exceeded the bounded limit')))
-      }
-    })
-    child.on('error', (error) => finish(() => reject(error)))
-    child.on('close', (code, signalName) => {
-      finish(() => {
-        if (code === 0) {
-          resolve(stdout.trim())
-          return
-        }
-        reject(new Error(stderr.trim() || `Git exited with ${signalName ?? `code ${code ?? 'unknown'}`}`))
-      })
-    })
-    signal?.addEventListener('abort', onAbort, { once: true })
-    child.stdin.end(input)
-  })
-}
-
-function validatePatch(
-  patchText: string,
-  proposal: ChangeProposal,
-  session: AnalysisSession,
-  config: RepoAtlasConfig,
-  limits: ChangeProposalLimits,
-): { parsed: ParsedPatch } | { parsed?: undefined; reason: string } {
-  if (typeof patchText !== 'string' || !patchText.trim()) return { reason: 'patch text is required' }
-  const canonicalText = patchText.replaceAll('\r\n', '\n').replaceAll('\r', '\n')
-  if (canonicalText.includes('\0')) return { reason: 'patch text contains a NUL byte' }
-  const normalizedText = canonicalText.endsWith('\n') ? canonicalText : `${canonicalText}\n`
-  if (Buffer.byteLength(normalizedText) > limits.maxPatchBytes) return { reason: 'patch byte budget exhausted' }
-  const secretCheck = redactSecretLike(normalizedText)
-  if (secretCheck.redacted) return { reason: 'patch text contains secret-like content and was rejected' }
-  const parsed = parsePatchText(normalizedText, limits)
-  if (!parsed.parsed) return parsed
-
-  const targetMap = new Map(proposal.targets.filter((target) => target.status === 'confirmed').map((target) => [target.relativePath, target]))
-  for (const file of parsed.parsed.summary.files) {
-    const check = checkWorkspacePath(proposal.workspaceRoot, file.relativePath)
-    if (!check.allowed) return { reason: `${file.relativePath}: ${check.reason}` }
-    if (isSensitivePath(file.relativePath, config.sensitiveFilePatterns)) return { reason: `${file.relativePath}: sensitive path is not eligible for patch application` }
-    if (config.excludeDirs.includes(file.relativePath.split('/')[0] ?? '')) return { reason: `${file.relativePath}: excluded directory is not eligible for patch application` }
-    if (!isPathCoveredByScope(file.relativePath, session.goal.scope)) return { reason: `${file.relativePath}: outside the confirmed GoalSpec scope` }
-    const target = targetMap.get(file.relativePath)
-    if (!target || target.operation !== file.operation) return { reason: `${file.relativePath}: patch operation is not covered by the confirmed proposal target` }
-  }
-  return parsed
-}
-
-function parsePatchText(patchText: string, limits: ChangeProposalLimits): { parsed: ParsedPatch } | { parsed?: undefined; reason: string } {
-  const lines = patchText.slice(-1) === '\n' ? patchText.slice(0, -1).split('\n') : patchText.split('\n')
-  if (!lines.length || !lines[0]?.startsWith('diff --git ')) return { reason: 'patch must start with a supported diff --git header' }
-  for (const line of lines) {
-    if (Buffer.byteLength(line) > limits.maxPatchLineBytes) return { reason: 'patch line-length budget exhausted' }
-  }
-  const starts = lines.flatMap((line, index) => line.startsWith('diff --git ') ? [index] : [])
-  if (starts.length === 0 || starts[0] !== 0) return { reason: 'patch contains unsupported content before the first diff block' }
-  if (starts.length > limits.maxPatchFiles) return { reason: 'patch file budget exhausted' }
-
-  const files: ChangeProposalPatchFileSummary[] = []
-  let totalHunks = 0
-  for (let blockIndex = 0; blockIndex < starts.length; blockIndex += 1) {
-    const start = starts[blockIndex] ?? 0
-    const end = starts[blockIndex + 1] ?? lines.length
-    const block = lines.slice(start, end)
-    const header = /^diff --git a\/(.+) b\/(.+)$/.exec(block[0] ?? '')
-    if (!header || header[1] !== header[2]) return { reason: 'patch contains unsupported rename, copy, or quoted diff header' }
-    if (block.some((line) => /^(?:Binary files|GIT binary patch|rename from |rename to |copy from |copy to |similarity index |old mode |new mode |Subproject commit )/.test(line))) {
-      return { reason: 'patch contains unsupported binary, rename, mode, or submodule metadata' }
-    }
-    const oldHeader = block.find((line) => line.startsWith('--- '))
-    const newHeader = block.find((line) => line.startsWith('+++ '))
-    const oldPath = parsePatchPath(oldHeader, '--- ', 'a/')
-    const newPath = parsePatchPath(newHeader, '+++ ', 'b/')
-    if (oldPath === undefined || newPath === undefined || (oldPath === null && newPath === null)) return { reason: 'patch has invalid unified-diff file headers' }
-    const relativePath = oldPath ?? newPath
-    if (relativePath !== header[1]) return { reason: 'patch diff header and unified file header do not match' }
-    const operation: ChangeProposalOperation = oldPath === null ? 'add' : newPath === null ? 'delete' : 'modify'
-    if (block.some((line) => line.startsWith('new file mode ')) && operation !== 'add') return { reason: 'new file metadata does not match patch operation' }
-    if (block.some((line) => line.startsWith('deleted file mode ')) && operation !== 'delete') return { reason: 'deleted file metadata does not match patch operation' }
-
-    let hunks = 0
-    let additions = 0
-    let deletions = 0
-    let inHunk = false
-    for (const line of block.slice(Math.max(block.indexOf(newHeader ?? ''), 0) + 1)) {
-      if (line.startsWith('@@ ')) {
-        if (!/^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@(?: .*)?$/.test(line)) return { reason: 'patch contains an invalid hunk header' }
-        hunks += 1
-        totalHunks += 1
-        if (totalHunks > limits.maxPatchHunks) return { reason: 'patch hunk budget exhausted' }
-        inHunk = true
-        continue
-      }
-      if (!inHunk) {
-        if (line.startsWith('index ') || line.startsWith('new file mode ') || line.startsWith('deleted file mode ')) continue
-        return { reason: 'patch contains unsupported metadata' }
-      }
-      if (line === '\\ No newline at end of file') continue
-      if (line.startsWith('+')) additions += 1
-      else if (line.startsWith('-')) deletions += 1
-      else if (line.startsWith(' ')) continue
-      else return { reason: 'patch contains an unsupported hunk line' }
-    }
-    if (hunks === 0) return { reason: 'patch file has no hunks' }
-    files.push({ relativePath, operation, additions, deletions, hunks })
-  }
-  const duplicate = files.find((file, index) => files.findIndex((candidate) => candidate.relativePath === file.relativePath) !== index)
-  if (duplicate) return { reason: `patch contains a duplicate target: ${duplicate.relativePath}` }
-  return {
-    parsed: {
-      canonicalText: patchText,
-      summary: {
-        bytes: Buffer.byteLength(patchText),
-        files,
-        hunks: totalHunks,
-        changedLines: files.reduce((total, file) => total + file.additions + file.deletions, 0),
-      },
-    },
-  }
-}
-
-function parsePatchPath(line: string | undefined, marker: string, prefix: string): string | null | undefined {
-  if (!line?.startsWith(marker)) return undefined
-  const value = line.slice(marker.length).split('\t', 1)[0] ?? ''
-  if (value === '/dev/null') return null
-  if (!value.startsWith(prefix) || value.length <= prefix.length) return undefined
-  return value.slice(prefix.length)
-}
-
-function createPatchDigest(proposal: ChangeProposal, patch: ChangeProposalPatch, patchText: string): string {
-  const payload = JSON.stringify({
-    patchId: patch.patchId,
-    proposalId: proposal.proposalId,
-    proposalDigest: proposal.confirmationDigest,
-    baseRevision: proposal.baseRevision,
-    worktreeIdentity: proposal.worktree?.identity,
-    summary: patch.summary,
-    patchText,
-  })
-  return createHash('sha256').update(payload).digest('hex')
-}
-
-function createCommitDigest(proposal: ChangeProposal, commit: ChangeProposalCommit, expectedWorkspacePaths: readonly string[]): string {
-  const payload = JSON.stringify({
-    commitId: commit.commitId,
-    proposalId: proposal.proposalId,
-    patchId: proposal.patch?.patchId,
-    patchDigest: proposal.patch?.confirmationDigest,
-    verificationId: proposal.patch?.verification?.verificationId,
-    verificationStatus: proposal.patch?.verification?.status,
-    baseRevision: proposal.baseRevision,
-    worktreeIdentity: proposal.worktree?.identity,
-    expectedWorkspacePaths: [...expectedWorkspacePaths].sort(),
-    commitMessage: commit.message,
-  })
-  return createHash('sha256').update(payload).digest('hex')
-}
-
-function createLandingDigest(proposal: ChangeProposal, landing: ChangeProposalLanding): string {
-  const payload = JSON.stringify({
-    landingId: landing.landingId,
-    proposalId: proposal.proposalId,
-    commitId: proposal.commit?.commitId,
-    commitDigest: proposal.commit?.confirmationDigest,
-    commitRevision: landing.commitRevision,
-    sourcePath: path.resolve(landing.sourcePath),
-    sourceRevision: landing.sourceRevision,
-  })
-  return createHash('sha256').update(payload).digest('hex')
-}
-
 function updatePatchFailure(
   proposal: ChangeProposal,
   patch: ChangeProposalPatch,
@@ -1800,98 +1293,6 @@ function proposalSummary(proposal: ChangeProposal): ChangeProposalSummary {
   }
 }
 
-function samePathSet(left: readonly string[], right: readonly string[]): boolean {
-  return [...new Set(left)].sort().join('\0') === [...new Set(right)].sort().join('\0')
-}
-
-function clonePatchSummary(summary: ChangeProposalPatchSummary): ChangeProposalPatchSummary {
-  return {
-    ...summary,
-    files: summary.files.map((file) => ({ ...file })),
-  }
-}
-
-function boundVerification(verification: ChangeProposalVerification, maxBytes: number): ChangeProposalVerification {
-  return {
-    ...verification,
-    reason: boundedRedactedText(verification.reason, maxBytes),
-    stdout: boundedRedactedText(verification.stdout, maxBytes),
-    stderr: boundedRedactedText(verification.stderr, maxBytes),
-  }
-}
-
-function workspaceRelativeRoot(proposal: ChangeProposal): string {
-  const relative = path.relative(path.resolve(proposal.repositoryRoot), path.resolve(proposal.workspaceRoot))
-  if (path.isAbsolute(relative) || relative === '..' || relative.startsWith(`..${path.sep}`)) throw new Error('proposal workspace is outside the repository root')
-  return relative
-}
-
-function workspaceChangedPaths(proposal: ChangeProposal, inspected: InspectedWorktree): string[] {
-  const relativeRoot = workspaceRelativeRoot(proposal)
-  const worktreeWorkspace = path.resolve(inspected.path, relativeRoot || '.')
-  const result: string[] = []
-  for (const repositoryPath of inspected.changedPaths) {
-    const absolute = path.resolve(inspected.path, repositoryPath)
-    if (!isWithin(worktreeWorkspace, absolute)) return [repositoryPath]
-    result.push(path.relative(worktreeWorkspace, absolute).replaceAll(path.sep, '/'))
-  }
-  return uniquePaths(result)
-}
-
-function repositoryRelativePaths(proposal: ChangeProposal): string[] {
-  if (!proposal.patch) throw new Error('proposal has no patch')
-  const repositoryRoot = path.resolve(proposal.repositoryRoot)
-  const workspaceRoot = path.resolve(proposal.workspaceRoot)
-  const paths = proposal.patch.summary.files.map((file) => {
-    const absolute = path.resolve(workspaceRoot, file.relativePath)
-    if (!isWithin(workspaceRoot, absolute) || !isWithin(repositoryRoot, absolute) || absolute === repositoryRoot) throw new Error(`invalid repository path: ${file.relativePath}`)
-    const relative = path.relative(repositoryRoot, absolute).replaceAll(path.sep, '/')
-    if (!isSafeRepositoryRelativePath(relative)) throw new Error(`invalid repository path: ${file.relativePath}`)
-    return relative
-  })
-  return uniquePaths(paths)
-}
-
-function uniquePaths(values: readonly string[]): string[] {
-  return [...new Set(values.filter((value) => value.length > 0).map((value) => value.replaceAll('\\', '/')))]
-}
-
-function isSafeRepositoryRelativePath(value: string): boolean {
-  return value.length > 0 && value !== '.' && !value.startsWith('/') && value !== '..' && !value.startsWith('../') && !value.includes('\0')
-}
-
-function normalizeCommitMessage(value: unknown, maxBytes: number): { value?: string; reason: string } {
-  if (typeof value !== 'string' || !value.trim()) return { reason: 'a non-empty commit message is required' }
-  const message = value.replaceAll('\r\n', '\n').replaceAll('\r', '\n').trim()
-  if (message.includes('\0')) return { reason: 'commit message contains a NUL byte' }
-  if (Buffer.byteLength(message) > maxBytes) return { reason: 'commit message byte budget exhausted' }
-  if (redactSecretLike(message).redacted) return { reason: 'commit message contains secret-like content and was rejected' }
-  return { value: message, reason: 'commit message is valid' }
-}
-
-function boundedRedactedText(value: string, maxBytes: number): string {
-  const redacted = redactSecretLike(value).text
-  if (Buffer.byteLength(redacted) <= maxBytes) return redacted
-  let result = ''
-  for (const character of redacted) {
-    if (Buffer.byteLength(`${result}${character}…`) > maxBytes) break
-    result += character
-  }
-  return `${result}…`
-}
-
-function boundedList(values: readonly string[], maxBytes: number): string[] {
-  const result: string[] = []
-  let bytes = 0
-  for (const value of values) {
-    const nextBytes = Buffer.byteLength(value)
-    if (bytes + nextBytes > maxBytes) break
-    result.push(value)
-    bytes += nextBytes
-  }
-  return result
-}
-
 function resultFor(proposal: ChangeProposal, reason: string): ChangeProposalResult {
   return { status: proposal.status, operationStatus: proposal.operationStatus, reason, proposal: cloneProposal(proposal) }
 }
@@ -2044,13 +1445,4 @@ function cloneProposal(proposal: ChangeProposal): ChangeProposal {
       verification: proposal.patch.verification ? { ...proposal.patch.verification } : undefined,
     } : undefined,
   }
-}
-
-function isProposalOperation(value: unknown): value is ChangeProposalOperation {
-  return value === 'add' || value === 'modify' || value === 'delete'
-}
-
-function redactError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error)
-  return message.replaceAll(/(?:api[_-]?key|token|password|secret)\s*[:=]\s*\S+/gi, '[REDACTED_SECRET]').slice(0, 400)
 }

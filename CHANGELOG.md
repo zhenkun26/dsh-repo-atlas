@@ -4,8 +4,49 @@ All notable RepoAtlas changes will be documented here. The existing `v0.1.0` tag
 
 ## [Unreleased]
 
+- Add local/Harness read-only repository readers, provider-bound cache compatibility,
+  bounded root ignore rules, explicit incomplete discovery and host-mapping guards.
+- Retain full redacted source separately from display excerpts; add content
+  validation mode, per-source freshness and deterministic search with file diversity.
+- Add opt-in `repo_atlas_symbols` through configured Harness LSP with bounded,
+  precise UTF-16 navigation, cancellation and fail-closed source validation.
+- Extract the fixed Git adapter and stateless lifecycle helpers while preserving
+  public exports, authorization and uncertain-outcome behavior.
+- Add explicit experimental candidate manifest/API checks and manual workflow
+  selection; preserve the historical accepted pin and stable promotion gate.
+
+
+### Added
+
+- Session-owned `repo_atlas_search` and `repo_atlas_impact` tools expose retained redacted evidence and bounded reverse-import impact with snapshot freshness, evidence chains, and unknown coverage.
+- An October repository-intelligence plan and an exact-source review record for Harness `5badb15009ae1756c3afe0ae0cef1faafc290ccc`; experimental native-tool and authenticated Web startup validation is recorded separately from formal support.
+- A synthetic labelled evaluation corpus and reproducible default-budget baseline, including cycle, unresolved, unsupported, redaction, action-budget and retained-text cases; labels remain pending human review.
+- Mixed TS/JS application and monorepo evaluation cases with complete static-snapshot
+  gates for expected edges, relevant files, reverse impact, unresolved imports and
+  unknown targets; unchanged partial baselines remain visible.
+- Repository evaluation in the Node 22/24 CI matrix, including push checks for the
+  active repository-intelligence branch.
+
+### Fixed
+
+- Match content and root-ignore I/O caps to their complete reserved byte charge, retaining failed/cancelled attempts.
+- Resolve only explicitly exact module values; preserve semantic whitespace, keep lossy/legacy literals unresolved and invalidate old AST caches.
+- Normalize tool DTO outputs for the native Harness lossless-JSON registry: omit
+  absent object fields and reject lossy values without changing execution authority.
+- Verify the exact installed Harness package manager and built public CLI; follow
+  authenticated loopback bootstrap without logging credentials or disabling auth.
+- Exercise real Agents and the native tool registry for analysis, search, impact,
+  session isolation and cancellation after candidate Loader activation.
+
+- Dependency graph construction no longer selects arbitrary filename-prefix or directory-child matches; ambiguous targets remain unresolved.
+- Exported string initializers no longer become module references. Graph confidence now distinguishes compiler provenance from structural fallback observations.
+- README distinguishes the public repository from the private npm publication setting.
+- Build diagnostics use stderr so the prepack hook preserves machine-readable `npm pack --json` output.
+
 ### Changed
 
+- Builds compile into fresh retained package trees. Root dist projection rejects stale files and symlinks; isolated mode leaves root dist untouched. Artifact verification packs only fresh outputs and installs into a new offline consumer without lifecycle scripts.
+- Artifact, API-contract and compatibility helpers retain their scratch outputs instead of deleting directories; semantic deletion tests and upstream build restrictions remain separate gates.
 - v2.18 resolves the analysis workspace from each live Harness invocation, forwards its cancellation signal, and owns proposal state by the exact Harness session object instead of plugin mount cwd.
 - v2.19 adds an official public-API type contract at the exact Harness pin, aligns sandbox policy with `{ session, mode }`, and upgrades the manual smoke to a bounded live Web boot and loopback probe.
 - v2.20 adds deterministic ESM/declaration output, built package exports, a minimal files allowlist, and offline installed-package imports for both the root and Harness entry.

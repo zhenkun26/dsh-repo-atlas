@@ -1,0 +1,46 @@
+{
+  "reviewedOn": "2026-10-04",
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "revision": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+  "version": "0.2.1-alpha.1",
+  "status": "source-reviewed-not-runtime-validated",
+  "acceptedCompatibilityManifest": "reference/harness-compatibility.json",
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "8c8687cb72ce8ce0e959cd97144fe34a52f4bbf1de18366bf2b532eba259764b"
+    },
+    {
+      "path": "packages/core/tools/src/index.ts",
+      "sha256": "9107a2b6447b10c2ecb90429d7c1b80b956759e96d35230af16f5a88f5d3eccd"
+    },
+    {
+      "path": "packages/core/session/src/types.ts",
+      "sha256": "67ff2491ae8284ab61c2c1a57e346fd4d12effb1e82a42aa654bcc90f067215c"
+    },
+    {
+      "path": "packages/interaction/user-approval/src/types.ts",
+      "sha256": "4413da55040e100e5700b5b89dccf387e08275587ac21876cba8cbab2df34037"
+    },
+    {
+      "path": "packages/goal/goal/src/index.ts",
+      "sha256": "333ebc31489619ee083235c5f5ceeb38ac3c6c844b2a0179458058401a6ebf9a"
+    },
+    {
+      "path": "packages/sandbox/sandbox-policy/src/index.ts",
+      "sha256": "6fce58e5bf63475f761871389bbf01043fba859f22e44c805522c39afbff32d6"
+    },
+    {
+      "path": "packages/fs/fs/src/index.ts",
+      "sha256": "bb3e351a975fde0f5d313cf9374af958b5d92f85b9f7c6688ccc7098409690d7"
+    },
+    {
+      "path": "packages/lsp/lsp/src/index.ts",
+      "sha256": "6bc8126e11d6b80663d98a30b11a7cfff72359859caa23a6e3c2dc18f72d1ac3"
+    },
+    {
+      "path": "scripts/build.ts",
+      "sha256": "5fc628033d3a8d8b18a5a223128d17605cca740908afa3a8a43e9af0dba6885d"
+    }
+  ]
+}

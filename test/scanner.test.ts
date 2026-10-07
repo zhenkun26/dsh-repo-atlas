@@ -15,8 +15,8 @@ test('scanner lists readable files and excludes sensitive/default generated path
   assert.match(readme.text ?? '', /Fixture App/)
 })
 
-test('scanner discovers fingerprints without consuming full-read budget', async () => {
-  const scanner = new RepositoryScanner(fixture('complete-repo'))
+test('scanner discovers fingerprints without full reads when root ignore policy reading is disabled', async () => {
+  const scanner = new RepositoryScanner(fixture('complete-repo'), { respectGitIgnore: false })
   const result = await scanner.discover()
   const readme = result.files.find((file) => file.relativePath === 'README.md')
   assert.ok(readme?.fingerprint)

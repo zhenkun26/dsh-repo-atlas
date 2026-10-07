@@ -1,0 +1,597 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-04T07:21:29.997Z",
+  "platform": "darwin",
+  "node": "v24.20.0",
+  "sourceSha256": "b6ce30e18abdb84ee3e07a361b79b915f2f2436aab29c1cb69815ccf03a1f2b3",
+  "evaluatorSha256": "a4be13ca32e43de6685b4af99c9e15560397932912c3c7d39fa7cf0f77ef8634",
+  "labelsSha256": "845f0243ddd1faa12fa461bf00e4a80c8ebf9d2ea9c5ad9c42c4701c4dbd66f6",
+  "labelProvenance": {
+    "kind": "agent-authored-synthetic-ground-truth",
+    "authoredOn": "2026-10-04",
+    "method": "Source and expected relationships authored before the evaluator; no labels derived from model outputs or algorithm results.",
+    "reviewStatus": "human-review-pending"
+  },
+  "configuration": {
+    "excludeDirs": [
+      ".git",
+      "node_modules",
+      "dist",
+      "build",
+      "coverage",
+      ".cache",
+      ".venv",
+      "venv"
+    ],
+    "sensitiveFilePatterns": [
+      ".env",
+      ".env.*",
+      "*.pem",
+      "*.key",
+      "credentials.*",
+      "*credentials*",
+      "*secret*"
+    ],
+    "maxCandidateFiles": 5000,
+    "maxFileBytes": 1048576,
+    "maxTotalBytes": 20971520,
+    "maxActions": 60,
+    "maxAstFiles": 64,
+    "maxAstTokensPerFile": 12000,
+    "maxAstObservationsPerFile": 100,
+    "maxAstObservationTextBytes": 240,
+    "controlledActions": {
+      "enabled": false,
+      "recipes": []
+    }
+  },
+  "metricsDefinition": {
+    "retrieval": "Unique source files projected from the existing top 10 evidence records; recall against independently authored relevant-file labels.",
+    "graph": "Static file-edge precision/recall against labelled resolvable relations; unsupported relations recorded separately.",
+    "impact": "Recall against full labelled affected-file set using current default depth=3 and limit=50.",
+    "citation": "Reference integrity within the retained snapshot; not fresh-file or line-content verification.",
+    "timing": "One local synthetic run; not a stable performance benchmark."
+  },
+  "results": [
+    {
+      "id": "cycle",
+      "inputSha256": "61eec8e576bfd1d106795ebe5fe8385ce4f39275f97e1ac8eb91e37748f823d6",
+      "edgeMetrics": {
+        "expected": 4,
+        "returned": 4,
+        "matched": 4,
+        "precision": 1,
+        "recall": 1,
+        "missing": [],
+        "unexpected": []
+      },
+      "retrieval": [
+        {
+          "query": "calculateCore",
+          "expected": 4,
+          "returned": 4,
+          "matched": 4,
+          "precision": 1,
+          "recall": 1,
+          "missing": [],
+          "unexpected": [],
+          "returnedFiles": [
+            "src/barrel.ts",
+            "src/core.ts",
+            "src/index.ts",
+            "tests/core.test.ts"
+          ],
+          "snapshotReferenceIntegrity": true,
+          "outputBytes": 2002,
+          "totalEvidenceMatches": 8
+        }
+      ],
+      "impact": {
+        "expected": 3,
+        "returned": 3,
+        "matched": 3,
+        "precision": 1,
+        "recall": 1,
+        "missing": [],
+        "unexpected": [],
+        "truncated": false,
+        "unknownTargets": [],
+        "evidenceReferencesValid": true
+      },
+      "unresolved": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": []
+      },
+      "redactionPassed": true,
+      "sensitivePathsExcluded": true,
+      "budgetExhausted": false,
+      "expectedBudgetStatusMatched": true,
+      "astStatuses": {
+        "not-analyzed": 2,
+        "syntax-confirmed": 4
+      },
+      "parserProvenance": {
+        "bounded-structural": 4,
+        "unavailable": 2
+      },
+      "unsupportedLabelledRelations": 0,
+      "readBytes": 430,
+      "actions": 13,
+      "elapsedMs": 26.23
+    },
+    {
+      "id": "unresolved",
+      "inputSha256": "cfed15b47d85c875ce5a52b181f77fbe02b0a7af0c1453d859ca4c289c5d9a99",
+      "edgeMetrics": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": []
+      },
+      "retrieval": [
+        {
+          "query": "serve",
+          "expected": 2,
+          "returned": 2,
+          "matched": 2,
+          "precision": 1,
+          "recall": 1,
+          "missing": [],
+          "unexpected": [],
+          "returnedFiles": [
+            "src/index.ts",
+            "src/service.ts"
+          ],
+          "snapshotReferenceIntegrity": true,
+          "outputBytes": 1330,
+          "totalEvidenceMatches": 5
+        }
+      ],
+      "impact": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": [],
+        "truncated": false,
+        "unknownTargets": [],
+        "evidenceReferencesValid": true
+      },
+      "unresolved": {
+        "expected": 2,
+        "returned": 2,
+        "matched": 2,
+        "precision": 1,
+        "recall": 1,
+        "missing": [],
+        "unexpected": []
+      },
+      "redactionPassed": true,
+      "sensitivePathsExcluded": true,
+      "budgetExhausted": false,
+      "expectedBudgetStatusMatched": true,
+      "astStatuses": {
+        "not-analyzed": 2,
+        "syntax-confirmed": 4
+      },
+      "parserProvenance": {
+        "bounded-structural": 4,
+        "unavailable": 2
+      },
+      "unsupportedLabelledRelations": 0,
+      "readBytes": 419,
+      "actions": 13,
+      "elapsedMs": 16.86
+    },
+    {
+      "id": "unsupported",
+      "inputSha256": "e9d31e560f2807fc34e60eb846e7d83f3b05ca9fc58dd1196e60b33bb2807eae",
+      "edgeMetrics": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": []
+      },
+      "retrieval": [
+        {
+          "query": "calculate_total",
+          "expected": 2,
+          "returned": 2,
+          "matched": 2,
+          "precision": 1,
+          "recall": 1,
+          "missing": [],
+          "unexpected": [],
+          "returnedFiles": [
+            "calculate.py",
+            "main.py"
+          ],
+          "snapshotReferenceIntegrity": true,
+          "outputBytes": 851,
+          "totalEvidenceMatches": 3
+        }
+      ],
+      "impact": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": [],
+        "truncated": false,
+        "unknownTargets": [],
+        "evidenceReferencesValid": true
+      },
+      "unresolved": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": []
+      },
+      "redactionPassed": true,
+      "sensitivePathsExcluded": true,
+      "budgetExhausted": false,
+      "expectedBudgetStatusMatched": true,
+      "astStatuses": {
+        "not-analyzed": 3
+      },
+      "parserProvenance": {
+        "unavailable": 3
+      },
+      "unsupportedLabelledRelations": 1,
+      "readBytes": 185,
+      "actions": 5,
+      "elapsedMs": 10.19
+    },
+    {
+      "id": "budget-chain",
+      "inputSha256": "004d5f802597b39e8f7b0339b8e1b892dd0375818c1833294e3ab496a4086175",
+      "edgeMetrics": {
+        "expected": 71,
+        "returned": 15,
+        "matched": 15,
+        "precision": 1,
+        "recall": 0.2112676056338028,
+        "missing": [
+          "src/f16.ts->src/f17.ts",
+          "src/f17.ts->src/f18.ts",
+          "src/f18.ts->src/f19.ts",
+          "src/f19.ts->src/f20.ts",
+          "src/f20.ts->src/f21.ts",
+          "src/f21.ts->src/f22.ts",
+          "src/f22.ts->src/f23.ts",
+          "src/f23.ts->src/f24.ts",
+          "src/f24.ts->src/f25.ts",
+          "src/f25.ts->src/f26.ts",
+          "src/f26.ts->src/f27.ts",
+          "src/f27.ts->src/f28.ts",
+          "src/f28.ts->src/f29.ts",
+          "src/f29.ts->src/f30.ts",
+          "src/f30.ts->src/f31.ts",
+          "src/f31.ts->src/f32.ts",
+          "src/f32.ts->src/f33.ts",
+          "src/f33.ts->src/f34.ts",
+          "src/f34.ts->src/f35.ts",
+          "src/f35.ts->src/f36.ts",
+          "src/f36.ts->src/f37.ts",
+          "src/f37.ts->src/f38.ts",
+          "src/f38.ts->src/f39.ts",
+          "src/f39.ts->src/f40.ts",
+          "src/f40.ts->src/f41.ts",
+          "src/f41.ts->src/f42.ts",
+          "src/f42.ts->src/f43.ts",
+          "src/f43.ts->src/f44.ts",
+          "src/f44.ts->src/f45.ts",
+          "src/f45.ts->src/f46.ts",
+          "src/f46.ts->src/f47.ts",
+          "src/f47.ts->src/f48.ts",
+          "src/f48.ts->src/f49.ts",
+          "src/f49.ts->src/f50.ts",
+          "src/f50.ts->src/f51.ts",
+          "src/f51.ts->src/f52.ts",
+          "src/f52.ts->src/f53.ts",
+          "src/f53.ts->src/f54.ts",
+          "src/f54.ts->src/f55.ts",
+          "src/f55.ts->src/f56.ts",
+          "src/f56.ts->src/f57.ts",
+          "src/f57.ts->src/f58.ts",
+          "src/f58.ts->src/f59.ts",
+          "src/f59.ts->src/f60.ts",
+          "src/f60.ts->src/f61.ts",
+          "src/f61.ts->src/f62.ts",
+          "src/f62.ts->src/f63.ts",
+          "src/f63.ts->src/f64.ts",
+          "src/f64.ts->src/f65.ts",
+          "src/f65.ts->src/f66.ts",
+          "src/f66.ts->src/f67.ts",
+          "src/f67.ts->src/f68.ts",
+          "src/f68.ts->src/f69.ts",
+          "src/f69.ts->src/f70.ts",
+          "src/f70.ts->src/f71.ts",
+          "src/f71.ts->src/f72.ts"
+        ],
+        "unexpected": []
+      },
+      "retrieval": [
+        {
+          "query": "budgetMarker72",
+          "expected": 1,
+          "returned": 0,
+          "matched": 0,
+          "precision": null,
+          "recall": 0,
+          "missing": [
+            "src/f72.ts"
+          ],
+          "unexpected": [],
+          "returnedFiles": [],
+          "snapshotReferenceIntegrity": true,
+          "outputBytes": 226,
+          "totalEvidenceMatches": 0
+        }
+      ],
+      "impact": {
+        "expected": 71,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": 0,
+        "missing": [
+          "src/f01.ts",
+          "src/f02.ts",
+          "src/f03.ts",
+          "src/f04.ts",
+          "src/f05.ts",
+          "src/f06.ts",
+          "src/f07.ts",
+          "src/f08.ts",
+          "src/f09.ts",
+          "src/f10.ts",
+          "src/f11.ts",
+          "src/f12.ts",
+          "src/f13.ts",
+          "src/f14.ts",
+          "src/f15.ts",
+          "src/f16.ts",
+          "src/f17.ts",
+          "src/f18.ts",
+          "src/f19.ts",
+          "src/f20.ts",
+          "src/f21.ts",
+          "src/f22.ts",
+          "src/f23.ts",
+          "src/f24.ts",
+          "src/f25.ts",
+          "src/f26.ts",
+          "src/f27.ts",
+          "src/f28.ts",
+          "src/f29.ts",
+          "src/f30.ts",
+          "src/f31.ts",
+          "src/f32.ts",
+          "src/f33.ts",
+          "src/f34.ts",
+          "src/f35.ts",
+          "src/f36.ts",
+          "src/f37.ts",
+          "src/f38.ts",
+          "src/f39.ts",
+          "src/f40.ts",
+          "src/f41.ts",
+          "src/f42.ts",
+          "src/f43.ts",
+          "src/f44.ts",
+          "src/f45.ts",
+          "src/f46.ts",
+          "src/f47.ts",
+          "src/f48.ts",
+          "src/f49.ts",
+          "src/f50.ts",
+          "src/f51.ts",
+          "src/f52.ts",
+          "src/f53.ts",
+          "src/f54.ts",
+          "src/f55.ts",
+          "src/f56.ts",
+          "src/f57.ts",
+          "src/f58.ts",
+          "src/f59.ts",
+          "src/f60.ts",
+          "src/f61.ts",
+          "src/f62.ts",
+          "src/f63.ts",
+          "src/f64.ts",
+          "src/f65.ts",
+          "src/f66.ts",
+          "src/f67.ts",
+          "src/f68.ts",
+          "src/f69.ts",
+          "src/f70.ts",
+          "src/f71.ts"
+        ],
+        "unexpected": [],
+        "truncated": false,
+        "unknownTargets": [],
+        "evidenceReferencesValid": true
+      },
+      "unresolved": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": []
+      },
+      "redactionPassed": true,
+      "sensitivePathsExcluded": true,
+      "budgetExhausted": true,
+      "expectedBudgetStatusMatched": true,
+      "astStatuses": {
+        "budget-exhausted": 33,
+        "not-analyzed": 2,
+        "safety-skipped": 24,
+        "syntax-confirmed": 15
+      },
+      "parserProvenance": {
+        "bounded-structural": 15,
+        "unavailable": 59
+      },
+      "unsupportedLabelledRelations": 0,
+      "readBytes": 2091,
+      "actions": 60,
+      "elapsedMs": 30.03
+    },
+    {
+      "id": "retained-text",
+      "inputSha256": "a528457d12998c9ac9d24388dbcb870606740a780efbbc2e56072e648cf982c7",
+      "edgeMetrics": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": []
+      },
+      "retrieval": [
+        {
+          "query": "tail-evidence-marker",
+          "expected": 1,
+          "returned": 0,
+          "matched": 0,
+          "precision": null,
+          "recall": 0,
+          "missing": [
+            "src/index.ts"
+          ],
+          "unexpected": [],
+          "returnedFiles": [],
+          "snapshotReferenceIntegrity": true,
+          "outputBytes": 227,
+          "totalEvidenceMatches": 0
+        }
+      ],
+      "impact": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": [],
+        "truncated": false,
+        "unknownTargets": [],
+        "evidenceReferencesValid": true
+      },
+      "unresolved": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": []
+      },
+      "redactionPassed": true,
+      "sensitivePathsExcluded": true,
+      "budgetExhausted": false,
+      "expectedBudgetStatusMatched": true,
+      "astStatuses": {
+        "not-analyzed": 2,
+        "syntax-confirmed": 1
+      },
+      "parserProvenance": {
+        "bounded-structural": 1,
+        "unavailable": 2
+      },
+      "unsupportedLabelledRelations": 0,
+      "readBytes": 12120,
+      "actions": 7,
+      "elapsedMs": 3.67
+    },
+    {
+      "id": "sensitive",
+      "inputSha256": "da78b2e18fc341a8a2d50c2c59d95ebb7eb90d871e335e590c9be119bfd6864e",
+      "edgeMetrics": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": []
+      },
+      "retrieval": [
+        {
+          "query": "REDACTED_SECRET",
+          "expected": 1,
+          "returned": 1,
+          "matched": 1,
+          "precision": 1,
+          "recall": 1,
+          "missing": [],
+          "unexpected": [],
+          "returnedFiles": [
+            "README.md"
+          ],
+          "snapshotReferenceIntegrity": true,
+          "outputBytes": 451,
+          "totalEvidenceMatches": 1
+        }
+      ],
+      "impact": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": [],
+        "truncated": false,
+        "unknownTargets": [],
+        "evidenceReferencesValid": true
+      },
+      "unresolved": {
+        "expected": 0,
+        "returned": 0,
+        "matched": 0,
+        "precision": null,
+        "recall": null,
+        "missing": [],
+        "unexpected": []
+      },
+      "redactionPassed": true,
+      "sensitivePathsExcluded": true,
+      "budgetExhausted": false,
+      "expectedBudgetStatusMatched": true,
+      "astStatuses": {
+        "not-analyzed": 1
+      },
+      "parserProvenance": {
+        "unavailable": 1
+      },
+      "unsupportedLabelledRelations": 0,
+      "readBytes": 52,
+      "actions": 3,
+      "elapsedMs": 1.15
+    }
+  ]
+}

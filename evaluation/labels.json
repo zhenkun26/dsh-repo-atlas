@@ -1,0 +1,422 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "kind": "agent-authored-synthetic-ground-truth",
+    "authoredOn": "2026-10-04",
+    "method": "Source and expected relationships authored before the evaluator; no labels derived from model outputs or algorithm results.",
+    "reviewStatus": "human-review-pending",
+    "extendedOn": "2026-10-07"
+  },
+  "cases": [
+    {
+      "id": "cycle",
+      "repository": "corpus/cycle/repository",
+      "expectedEdges": [
+        [
+          "src/index.ts",
+          "src/barrel.ts"
+        ],
+        [
+          "src/barrel.ts",
+          "src/core.ts"
+        ],
+        [
+          "src/core.ts",
+          "src/index.ts"
+        ],
+        [
+          "tests/core.test.ts",
+          "src/core.ts"
+        ]
+      ],
+      "queries": [
+        {
+          "query": "calculateCore",
+          "relevantFiles": [
+            "src/index.ts",
+            "src/barrel.ts",
+            "src/core.ts",
+            "tests/core.test.ts"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "src/core.ts"
+        ],
+        "affectedFiles": [
+          "src/barrel.ts",
+          "src/index.ts",
+          "tests/core.test.ts"
+        ]
+      },
+      "unresolved": [],
+      "expectBudgetExhausted": false
+    },
+    {
+      "id": "unresolved",
+      "repository": "corpus/unresolved/repository",
+      "expectedEdges": [],
+      "queries": [
+        {
+          "query": "serve",
+          "relevantFiles": [
+            "src/index.ts",
+            "src/service.ts"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "src/service.ts"
+        ],
+        "affectedFiles": []
+      },
+      "unresolved": [
+        {
+          "sourcePath": "src/index.ts",
+          "moduleSpecifier": "@app/service"
+        },
+        {
+          "sourcePath": "src/index.ts",
+          "moduleSpecifier": "./absent.ts"
+        }
+      ],
+      "expectBudgetExhausted": false,
+      "limitations": [
+        "Dynamic import to src/lazy.ts is intentionally outside current static graph coverage."
+      ]
+    },
+    {
+      "id": "unsupported",
+      "repository": "corpus/unsupported/repository",
+      "expectedEdges": [],
+      "queries": [
+        {
+          "query": "calculate_total",
+          "relevantFiles": [
+            "main.py",
+            "calculate.py"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "calculate.py"
+        ],
+        "affectedFiles": []
+      },
+      "unresolved": [],
+      "expectBudgetExhausted": false,
+      "unsupportedRelations": [
+        [
+          "main.py",
+          "calculate.py"
+        ]
+      ]
+    },
+    {
+      "id": "budget-chain",
+      "generator": {
+        "kind": "chain",
+        "fileCount": 72
+      },
+      "queries": [
+        {
+          "query": "budgetMarker72",
+          "relevantFiles": [
+            "src/f72.ts"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "src/f72.ts"
+        ],
+        "affectedFiles": [
+          "src/f01.ts",
+          "src/f02.ts",
+          "src/f03.ts",
+          "src/f04.ts",
+          "src/f05.ts",
+          "src/f06.ts",
+          "src/f07.ts",
+          "src/f08.ts",
+          "src/f09.ts",
+          "src/f10.ts",
+          "src/f11.ts",
+          "src/f12.ts",
+          "src/f13.ts",
+          "src/f14.ts",
+          "src/f15.ts",
+          "src/f16.ts",
+          "src/f17.ts",
+          "src/f18.ts",
+          "src/f19.ts",
+          "src/f20.ts",
+          "src/f21.ts",
+          "src/f22.ts",
+          "src/f23.ts",
+          "src/f24.ts",
+          "src/f25.ts",
+          "src/f26.ts",
+          "src/f27.ts",
+          "src/f28.ts",
+          "src/f29.ts",
+          "src/f30.ts",
+          "src/f31.ts",
+          "src/f32.ts",
+          "src/f33.ts",
+          "src/f34.ts",
+          "src/f35.ts",
+          "src/f36.ts",
+          "src/f37.ts",
+          "src/f38.ts",
+          "src/f39.ts",
+          "src/f40.ts",
+          "src/f41.ts",
+          "src/f42.ts",
+          "src/f43.ts",
+          "src/f44.ts",
+          "src/f45.ts",
+          "src/f46.ts",
+          "src/f47.ts",
+          "src/f48.ts",
+          "src/f49.ts",
+          "src/f50.ts",
+          "src/f51.ts",
+          "src/f52.ts",
+          "src/f53.ts",
+          "src/f54.ts",
+          "src/f55.ts",
+          "src/f56.ts",
+          "src/f57.ts",
+          "src/f58.ts",
+          "src/f59.ts",
+          "src/f60.ts",
+          "src/f61.ts",
+          "src/f62.ts",
+          "src/f63.ts",
+          "src/f64.ts",
+          "src/f65.ts",
+          "src/f66.ts",
+          "src/f67.ts",
+          "src/f68.ts",
+          "src/f69.ts",
+          "src/f70.ts",
+          "src/f71.ts"
+        ]
+      },
+      "expectBudgetExhausted": true,
+      "limitations": [
+        "Full labelled impact exceeds the default query depth and analysis action/AST budgets."
+      ]
+    },
+    {
+      "id": "retained-text",
+      "generator": {
+        "kind": "retained-text",
+        "paddingCharacters": 12000
+      },
+      "expectedEdges": [],
+      "queries": [
+        {
+          "query": "tail-evidence-marker",
+          "relevantFiles": [
+            "src/index.ts"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "src/index.ts"
+        ],
+        "affectedFiles": []
+      },
+      "unresolved": [],
+      "expectBudgetExhausted": false,
+      "limitations": [
+        "Query text is beyond the 8000-character retained full-text evidence excerpt and is not a declaration name."
+      ]
+    },
+    {
+      "id": "sensitive",
+      "repository": "corpus/sensitive/repository",
+      "expectedEdges": [],
+      "queries": [
+        {
+          "query": "REDACTED_SECRET",
+          "relevantFiles": [
+            "README.md"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "README.md"
+        ],
+        "affectedFiles": []
+      },
+      "unresolved": [],
+      "expectBudgetExhausted": false,
+      "forbiddenEvidenceStrings": [
+        "EXAMPLE_ONLY"
+      ],
+      "forbiddenEvidencePaths": [
+        ".env"
+      ]
+    },
+    {
+      "id": "application",
+      "repository": "corpus/application/repository",
+      "authoredOn": "2026-10-07",
+      "expectedEdges": [
+        [
+          "src/main.ts",
+          "src/http/router.ts"
+        ],
+        [
+          "src/http/router.ts",
+          "src/services/invoice.ts"
+        ],
+        [
+          "src/services/invoice.ts",
+          "src/lib/money.js"
+        ],
+        [
+          "tests/invoice.test.ts",
+          "src/services/invoice.ts"
+        ],
+        [
+          "tests/invoice.test.ts",
+          "src/lib/money.js"
+        ]
+      ],
+      "queries": [
+        {
+          "query": "createInvoice",
+          "relevantFiles": [
+            "src/http/router.ts",
+            "src/services/invoice.ts",
+            "tests/invoice.test.ts"
+          ]
+        },
+        {
+          "query": "roundCents",
+          "relevantFiles": [
+            "src/services/invoice.ts",
+            "src/lib/money.js",
+            "tests/invoice.test.ts"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "src/lib/money.js"
+        ],
+        "affectedFiles": [
+          "src/services/invoice.ts",
+          "src/http/router.ts",
+          "src/main.ts",
+          "tests/invoice.test.ts"
+        ]
+      },
+      "unresolved": [],
+      "expectBudgetExhausted": false,
+      "expectCompleteCoverage": true,
+      "expectedUnknownTargets": []
+    },
+    {
+      "id": "monorepo",
+      "repository": "corpus/monorepo/repository",
+      "authoredOn": "2026-10-07",
+      "expectedEdges": [
+        [
+          "packages/shared/src/index.ts",
+          "packages/shared/src/math.ts"
+        ],
+        [
+          "apps/api/src/main.ts",
+          "packages/shared/src/index.ts"
+        ],
+        [
+          "apps/web/src/main.ts",
+          "apps/web/src/view.ts"
+        ],
+        [
+          "apps/web/src/view.ts",
+          "packages/shared/src/math.ts"
+        ],
+        [
+          "tests/workspace.test.ts",
+          "apps/api/src/main.ts"
+        ],
+        [
+          "tests/workspace.test.ts",
+          "apps/web/src/view.ts"
+        ]
+      ],
+      "queries": [
+        {
+          "query": "calculateTotal",
+          "relevantFiles": [
+            "packages/shared/src/math.ts",
+            "packages/shared/src/index.ts",
+            "apps/api/src/main.ts",
+            "apps/api/src/worker.ts",
+            "apps/web/src/main.ts",
+            "apps/web/src/view.ts"
+          ]
+        },
+        {
+          "query": "apiBoot",
+          "relevantFiles": [
+            "apps/api/src/main.ts",
+            "tests/workspace.test.ts"
+          ]
+        }
+      ],
+      "impact": {
+        "targets": [
+          "packages/shared/src/math.ts",
+          "packages/shared/src/missing.ts"
+        ],
+        "affectedFiles": [
+          "packages/shared/src/index.ts",
+          "apps/api/src/main.ts",
+          "apps/web/src/main.ts",
+          "apps/web/src/view.ts",
+          "tests/workspace.test.ts"
+        ]
+      },
+      "unresolved": [
+        {
+          "sourcePath": "apps/web/src/main.ts",
+          "moduleSpecifier": "@shared/math"
+        },
+        {
+          "sourcePath": "apps/api/src/worker.ts",
+          "moduleSpecifier": "@fixture/shared"
+        }
+      ],
+      "unsupportedRelations": [
+        [
+          "apps/web/src/main.ts",
+          "packages/shared/src/math.ts"
+        ],
+        [
+          "apps/api/src/worker.ts",
+          "packages/shared/src/index.ts"
+        ]
+      ],
+      "expectBudgetExhausted": false,
+      "expectCompleteCoverage": true,
+      "expectedUnknownTargets": [
+        "packages/shared/src/missing.ts"
+      ],
+      "limitations": [
+        "Alias and package-export resolution remain unsupported; affected labels describe only observed resolvable static edges, not runtime impact."
+      ]
+    }
+  ]
+}

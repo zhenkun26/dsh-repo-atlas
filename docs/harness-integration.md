@@ -19,12 +19,78 @@ pnpm dsh web
 
 ## 公开分发边界
 
-RepoAtlas 当前从 checkout 构建后加载：先运行 `npm ci` 与 `npm run build`，再由根目录 `cordis.patch.yml` 加载 `dsh-repo-atlas/harness` 的 built export。v2.20 的 `npm run verify:built-artifact` 在 task-owned 目录中验证 `dist/` ESM/declarations、最小 files allowlist、offline tarball install，以及 plain Node root/Harness imports；tarball 不含 raw `src/`，consumer 不运行 prepare/tsx。该能力仍保持 `private:true`，不执行或暗示 npm publish。
+RepoAtlas 当前从 checkout 构建后加载：先运行 `npm ci` 与 `npm run build`，再由根目录 `cordis.patch.yml` 加载 `dsh-repo-atlas/harness` 的 built export。构建先生成新的 `.codex/artifacts/build-*/package`，再检查并更新根目录 `dist/`；旧文件或符号链接会阻止这一步。`npm run build -- --isolated` 只生成独立 package，可将打印出的 package 路径加入 Harness profile。`npm run verify:built-artifact` 仅打包新的独立 package，验证 `dist/` ESM/declarations、最小 files allowlist、offline tarball install，以及 plain Node root/Harness imports；tarball 不含 raw `src/`，consumer 禁用 lifecycle scripts。构建、tarball、consumer 与失败记录全部保留。该能力仍保持 `private:true`，不执行或暗示 npm publish。
 
 真实 Harness 兼容目标固定在 [reference/harness-compatibility.json](../reference/harness-compatibility.json)：公开仓库 `deepseek-ai/deepseek-harness` 的 `master` 分支仅作导航，`47f943859bef60e4160492346772ded9b24f765a` 才是验收 revision，配套 Node 24.x 与 pnpm 11.7.0。忽略的 `reference/deepseek-harness/` 是用户本地 checkout；只有 HEAD 与该 revision 完全一致时才可作为本地 smoke 输入，ahead/diverged checkout 必须 fail closed。
 
 在满足 pin 且已通过 Harness 根 `pnpm run build` 生成 host、client 与 Web outputs 的 checkout 中，可在 RepoAtlas 根目录运行 `REPO_ATLAS_HARNESS_ROOT=/absolute/path/to/deepseek-harness npm run verify:harness-api-contract`，验证 RepoAtlas facade 对官方 ToolDefinition、ToolRunContext、Context、approval、Goal、sandbox-policy、sandbox 与 subprocess declarations 的 assignability。sandbox-policy facade 覆盖官方完整 `SandboxMode` vocabulary 仅用于结构兼容；RepoAtlas runtime 仍只接受 `read-only`/`workspace-write` resolved policy，并在 `danger-full-access` 或未知 mode 下于 sandbox/subprocess 前 fail closed。该检查拒绝 tracked dirty 或 revision drift，不把本地手写类型单独视为证据。
 
-`REPO_ATLAS_HARNESS_ROOT=/absolute/path/to/deepseek-harness npm run verify:harness-compatibility` 使用固定 `pnpm` argv、`shell:false`、filtered environment 和 task-owned 临时 `DSH_HOME`。手动 workflow 必须先完成 pinned Harness 根 `pnpm run build`，不能用 host-only build 代替 Web frontend output；runner 随后验证 `plugin add`、`--dump-config`、官方 API contract，并实际启动 `dsh web --port 0`。只有观察到 post-settlement `dsh web:` loopback readiness、完成 bounded HTTP probe 并终止 owned child 后才通过。help/config/module import 单独不再算 activation evidence。对应 workflow 仍只有 `workflow_dispatch` 和 `contents: read`；默认 PR/push CI 不 clone、安装、构建或启动外部 Harness。
+`REPO_ATLAS_HARNESS_ROOT=/absolute/path/to/deepseek-harness npm run verify:harness-compatibility` 校验已安装的固定 pnpm 版本，并通过 Node 启动已构建的公开 `dsh` CLI bin，使用 `shell:false`、filtered environment 和 task-owned 临时 `DSH_HOME`。手动 workflow 必须先完成 pinned Harness 根 `pnpm run build`，不能用 host-only build 代替 Web frontend output；runner 随后验证 `plugin add`、`--dump-config`、官方 API contract，并实际启动 `dsh web --port 0`。只有观察到 post-settlement `dsh web:` loopback readiness、完成 bounded HTTP probe 并终止 owned child 后才通过。help/config/module import 单独不再算 activation evidence。对应 workflow 仍只有 `workflow_dispatch` 和 `contents: read`；默认 PR/push CI 不 clone、安装、构建或启动外部 Harness。
 
 fake-context tests 与 exact-pin API compile pass 证明不同层次的契约，但都不等价于 live Loader activation。v2.22 修复后的 [manual workflow run 31895791477](https://github.com/zhenkun26/dsh-repo-atlas/actions/runs/31895791477) 已在 exact pin 上完成 root build、official API contract、live loopback probe 与 owned-process cleanup；该运行是当前 live activation 证据，但仍不等于 npm publication、tag、GitHub Release、deployment 或额外 runtime 授权。
+
+## 2026-10 证据查询与新版上游审查
+
+默认注册四个工具：`repo_atlas_analyze`、`repo_atlas_search`、`repo_atlas_impact` 和原有 `repo_atlas_change_proposal`。两个新增查询的实现见 `src/harness/intelligence-tools.ts`；查询需要当前 exact session 已完成分析，且继续通过 cwd、AbortSignal 和配置 root 校验。
+
+`repo_atlas_search` 接收 query 和 1–50 的 limit；`repo_atlas_impact` 接收 1–50 个仓库相对路径、1–10 的 maxDepth 和 1–100 的 limit。返回的 freshness 为 `snapshot-not-revalidated`，不会新增文件读取、Git、审批或 subprocess。source 变化后需重新调用 analyze；有限图上的空结果不代表无影响。
+
+当前重新拉取的上游为 `5badb15009ae1756c3afe0ae0cef1faafc290ccc`，审查记录见 [harness-upstream-review.json](../reference/harness-upstream-review.json)，迁移计划见 [replanning](replanning-2026-10.md)。现有 accepted manifest 和手动 workflow pin 保留，不能把新的源码审查当作旧验收 pin 已自动升级。
+
+## Reader and symbol integration (2026-10)
+
+`readerMode` supports `auto` (default), `local` and `harness`. A selected Harness fs
+never falls back on failure. Provider identity binds cache reuse; canonical targets
+and versions remain opaque. Older filesystem providers without host mapping remain
+readable but cannot authorize host Git or controlled checks from their evidence.
+Explicit local mode retains the intentionally local lifecycle workflow.
+
+`repo_atlas_symbols` is opt-in through `symbols.enabled`. It uses the configured
+LSP query seam, caller cancellation, source-content validation, bounded results,
+one-based UTF-16 ranges and canonical execution-world URI relativization. It does
+not install servers; unavailable providers and redacted cursor bases fail closed.
+The four default tool registrations stay unchanged. Search/impact remain snapshots
+without I/O; symbols are a separate live semantic query with a freshly checked
+query source and observed-path filtering for targets.
+
+The explicit experimental [candidate manifest](../reference/harness-candidate.json)
+selects `5badb150...` only with `--candidate`:
+
+```sh
+REPO_ATLAS_HARNESS_ROOT=/absolute/path/to/deepseek-harness npm run verify:harness-api-contract -- --candidate
+REPO_ATLAS_HARNESS_ROOT=/absolute/path/to/deepseek-harness npm run verify:harness-compatibility -- --candidate
+```
+
+Official candidate declarations (including fs/LSP), the full upstream build,
+Loader activation, authenticated Web boot and eight native-tool flow checks pass
+on macOS with Node 24.20.0 and the exact installed pnpm 11.7.0. The smoke uses
+the built public CLI and the browser bootstrap cookie, without disabling auth.
+Credentials stay in memory. Its task-owned fixture and real Agents exercise
+analysis, evidence search, reverse-import impact, session isolation and cancellation
+through the actual tool registry, without a model request.
+
+Real configured LSP, human UI/label acceptance and Windows execution remain open.
+The [validation record](../reference/harness-candidate-validation.json) separates
+these gates. Deletion was limited to assessed task-owned synthetic test artifacts
+and regenerable ignored upstream outputs under the user's subsequent authorization.
+The manual workflow defaults to the historical accepted target and offers candidate
+selection; it is not dispatched by these local declaration results. Stable formal
+promotion still requires a 0.2.x stable release plus all acceptance gates.
+
+Cordis returns a new traced service wrapper for each lookup. Reader identity uses
+its exported `cordis.original` symbol solely to bind the underlying service; all I/O
+continues through the traced wrapper. The exact candidate's official emitted
+Cordis/Cosmokit component probe passes distinct-wrapper identity, actual service
+replacement and caller-context preservation. This narrow component probe is part
+of candidate API verification and is not a packaged Loader/Web acceptance run.
+
+## Native JSON output contract (2026-10-05)
+
+The current native registry requires lossless JSON. Optional `undefined` fields
+previously made a real analysis fail with `INVALID_TOOL_OUTPUT`, despite declaration
+and mock-context passes. All tool factories now project returned DTOs through
+`src/harness/json-output.ts`: absent object fields are omitted, while null, false,
+zero and empty strings retain their meaning. Lossy numbers, undefined array items,
+non-plain objects, accessors and cycles are rejected. Producer objects and execution,
+approval, root and cancellation checks are unchanged. The real native flow now
+passes; the regression suite also validates this output boundary.

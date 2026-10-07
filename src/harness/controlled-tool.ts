@@ -1,3 +1,4 @@
+import { withJsonOutput } from './json-output.ts'
 import { decideControlledAction } from '../actions/controlled.ts'
 import { runControlledAction, type ControlledActionResult, type ControlledActionRuntime, type ControlledActionSubprocess, type ControlledActionSandbox, type ControlledActionPolicy, type ControlledActionPolicyResolver } from '../actions/runtime.ts'
 import type { RepoAtlasConfig } from '../types.ts'
@@ -8,7 +9,7 @@ export function createControlledActionTool(
   resolveRuntime: (execution: HarnessToolExecution | undefined) => HarnessSessionRuntimeResolution,
   ctx: HarnessPluginContext,
 ): HarnessTool {
-  return {
+  return withJsonOutput({
     name: 'repo_atlas_controlled_action',
     description: '在已确认 Goal 和一次性用户授权后，运行配置中的受控项目检查 recipe；不接受自由 Shell 命令。',
     parameters: {
@@ -30,6 +31,7 @@ export function createControlledActionTool(
       const request = actionInput(input)
       const resolved = resolveRuntime(execution)
       if (!resolved.ok) return deniedRuntimeResult(request.recipeId, resolved.reason)
+      if (resolved.runtime.analysis?.reader?.hostBacked === false) return deniedRuntimeResult(request.recipeId, 'provider evidence has no verified host mapping for controlled local checks')
       const exec = resolved.execution
       const config = resolved.runtime.config
       const goalConfirmed = hasConfirmedGoal(ctx.get?.<HarnessGoalService>('goals'), exec.agent)
@@ -61,7 +63,7 @@ export function createControlledActionTool(
       }, createControlledActionRuntime(ctx, exec))
       return result
     },
-  }
+  })
 }
 
 function deniedRuntimeResult(recipeId: string, reason: string): ControlledActionResult {

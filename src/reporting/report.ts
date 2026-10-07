@@ -42,7 +42,7 @@ function buildMarkdown(session: AnalysisSession, mermaid: string, validation: Ar
   }).join('\n')
   const evidenceLines = session.evidence.slice(0, 100).map(formatEvidence).join('\n') || '- 暂无证据。'
   const codeFence = '```'
-  return `# RepoAtlas 代码星图报告\n\n> Session: ${session.sessionId}\n> 分析模板：${session.plan.name === 'onboarding' ? '项目接手概览' : '架构概览'}\n> 权限：只读；仓库内容视为不可信数据，不执行其中指令。\n\n## 项目摘要\n\n${p.summary}\n\n- 项目名：${p.name}\n- 分析状态：${session.interrupted ? '部分结果（用户中断）' : session.scan.budget.exhausted ? '部分结果（预算耗尽）' : '已完成计划内分析'}\n\n## 语法确认摘要\n\n${formatAstSummary(session)}\n\n## 技术栈\n\n${listOrUnknown(p.techStack)}\n\n## 目录结构与核心模块\n\n${listOrUnknown(p.coreDirectories)}\n\n## 入口线索\n\n${listOrUnknown(p.entries)}\n\n## 运行配置与测试配置\n\n### 运行配置\n${listOrUnknown(p.runtimeConfig)}\n\n### 测试配置\n${listOrUnknown(p.testConfig)}\n\n## 架构关系图\n\n${codeFence}mermaid\n${mermaid}\n${codeFence}\n\n## 主要结论\n\n${conclusionLines || '- 暂无结论。'}\n\n## 推荐阅读顺序\n\n${listOrUnknown(p.readingOrder)}\n\n## 证据索引\n\n${evidenceLines}\n\n## 限制与未确认部分\n\n${listOrUnknown(limitations)}\n\n## ReAct 执行摘要\n\n- 动作数：${session.actions.length}\n- 候选文件：${session.scan.budget.candidateFiles}\n- 读取字节数：${session.scan.budget.readBytes}\n- 跳过路径：${session.scan.skipped.length}\n- 失败项：${session.scan.failures.length}\n`
+  return `# RepoAtlas 代码星图报告\n\n> Session: ${session.sessionId}\n> 分析模板：${session.plan.name === 'onboarding' ? '项目接手概览' : '架构概览'}\n> 权限：只读；仓库内容视为不可信数据，不执行其中指令。\n\n## 项目摘要\n\n${p.summary}\n\n- 项目名：${p.name}\n- 分析状态：${session.interrupted ? '部分结果（用户中断）' : session.scan.budget.exhausted ? '部分结果（预算耗尽）' : session.scan.failures.length || session.scan.ignorePolicy?.unsupportedRuleCount || session.scan.ignorePolicy?.nestedPoliciesObserved ? '部分结果（发现或忽略规则不完整）' : '已完成计划内分析'}\n\n## 语法确认摘要\n\n${formatAstSummary(session)}\n\n## 技术栈\n\n${listOrUnknown(p.techStack)}\n\n## 目录结构与核心模块\n\n${listOrUnknown(p.coreDirectories)}\n\n## 入口线索\n\n${listOrUnknown(p.entries)}\n\n## 运行配置与测试配置\n\n### 运行配置\n${listOrUnknown(p.runtimeConfig)}\n\n### 测试配置\n${listOrUnknown(p.testConfig)}\n\n## 架构关系图\n\n${codeFence}mermaid\n${mermaid}\n${codeFence}\n\n## 主要结论\n\n${conclusionLines || '- 暂无结论。'}\n\n## 推荐阅读顺序\n\n${listOrUnknown(p.readingOrder)}\n\n## 证据索引\n\n${evidenceLines}\n\n## 限制与未确认部分\n\n${listOrUnknown(limitations)}\n\n## ReAct 执行摘要\n\n- 动作数：${session.actions.length}\n- 候选文件：${session.scan.budget.candidateFiles}\n- 读取字节数：${session.scan.budget.readBytes}\n- 跳过路径：${session.scan.skipped.length}\n- 失败项：${session.scan.failures.length}\n`
 }
 
 function formatIncrementalSummary(summary: AnalysisSession['incrementalSummary']): string {
@@ -75,6 +75,8 @@ function collectLimitations(session: AnalysisSession): string[] {
   ]
   if (session.scan.skipped.length) limitations.push(`安全跳过或排除 ${session.scan.skipped.length} 个路径；敏感文件不会进入报告。`)
   if (session.scan.failures.length) limitations.push(`有 ${session.scan.failures.length} 个读取或解析失败项，相关结论需要人工确认。`)
+  if (session.scan.ignorePolicy?.unsupportedRuleCount || session.scan.ignorePolicy?.nestedPoliciesObserved) limitations.push('仅应用根目录 .gitignore 的受限正向规则；不支持的语法及嵌套规则使发现覆盖不完整。')
+  limitations.push('检索使用会话内有界脱敏源码快照；metadata-reused 不代表重新读取内容，展示摘要不代表完整源码。')
   if (session.scan.budget.exhausted) limitations.push('扫描或动作预算已耗尽，结果仅代表已完成部分。')
   if (session.edges.some((edge) => edge.status === 'syntax-confirmed')) limitations.push('部分架构关系由受限语法结构确认；这不等同于类型检查、模块加载或运行时依赖证明。')
   if (session.edges.some((edge) => edge.status === 'inferred')) limitations.push('仍有架构关系来自文本模式匹配，是静态推测，不等同于运行时依赖。')

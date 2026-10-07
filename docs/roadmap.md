@@ -1,5 +1,18 @@
 # 限制与后续路线
 
+## 2026-10 重规划与当前交付
+
+产品方向已确定为 Harness 原生的代码理解、证据检索和变更影响分析插件。
+新的优先级与验收标准见 [October replanning](replanning-2026-10.md)；下方版本记录保留为历史证据。
+
+- R1 已本地实现：独立依赖图模块、严格导入解析、parser provenance、会话内 `repo_atlas_search` 与 `repo_atlas_impact`；既有变更生命周期保留。
+- 当前上游已重新拉取并审查：`5badb15009ae1756c3afe0ae0cef1faafc290ccc`（`0.2.1-alpha.1`）。官方全量构建、声明契约、Loader、带认证的 Web 启动和原生工具流程已在 macOS 通过；历史正式 pin 保持不变。
+- R2–R5 的实现增量已落地：免删除构建与独立语料、只读 local/Harness reader、源码新鲜度与检索质量、可选 LSP 导航、Git adapter/helper 拆分。人工标签/LSP/UI、Windows 和 stable 正式支持仍待独立验收。
+- 外部评审采纳结果已写入重规划：允许提前评估独立的 Git adapter/无状态 helper 拆分；动态工具可见性列入 R3/R4 观察项；正式 supported pin 默认等待 stable 并通过完整验收，alpha 适配及独立质量工作继续推进。README public/private 问题已在 `71e3231` 解决。
+- 本轮完整 129 项测试、类型检查、lint、OpenSpec 1.7.0、常规 prepack 与 fresh packed artifact 离线导入通过。评估删除范围后，原先八项旧测试已执行；原生运行中发现的严格 JSON 输出不兼容已修复。
+- 合成循环样例召回完整；72 文件链的依赖边召回为 15/71，报告预算耗尽，末端检索/影响召回为零；保留文本边界查询已从 0/1 提升至 1/1。标签待人工审阅，结果不能代表真实仓库效果，预算未调整。
+- R1、R2a/R2b 与 reader/cache/LSP/拆分增量已推送至 `refactor/repository-intelligence`（`71e3231`、`b107eea`、`e71f27e`）。本轮原生运行修复按既有授权继续交付；最终状态见 [integration tasks](../openspec/changes/repository-intelligence-integration/tasks.md)。未合并或发布。
+
 ## 不属于 v1
 
 - 受控命令执行、测试/构建运行和自动修复。
@@ -38,3 +51,20 @@
 26. v2.22（已实现并通过 manual workflow）：修复增强 live smoke 的 pinned Harness 构建前置条件，workflow 改用官方根 `pnpm run build` 生成 host、client 与 Web frontend outputs 后再启动 `dsh web`；仍保持 `workflow_dispatch`、`contents: read`、exact pin、bounded loopback probe 与 owned-process cleanup。[run 31895791477](https://github.com/zhenkun26/dsh-repo-atlas/actions/runs/31895791477) 在 `47f943859bef60e4160492346772ded9b24f765a` 上通过。
 
 每个版本都应先更新安全边界、预算、部分失败语义和验收 fixture，再扩展工具权限。OpenSpec sync/archive、commit/push、npm publication 与实际 tag/Release 操作始终是独立的审阅边界。
+
+
+## Repository-intelligence delivery follow-up (2026-10-04)
+
+The [October plan](replanning-2026-10.md) remains the current priority authority.
+After R1 (`71e3231`) and the non-deleting artifacts/evaluation foundation
+(`b107eea`), local/Harness readers, full redacted source retention, content validation,
+root ignore-policy handling and deterministic retrieval are implemented. Optional
+LSP navigation defaults to disabled. The fixed Git adapter/stateless helpers are
+physically separated while state-machine behavior remains characterized.
+
+The exact experimental candidate's official declarations pass, including fs/LSP.
+The October 5 [integration follow-up](../openspec/changes/repository-intelligence-integration/tasks.md)
+closes the full 129-case suite, upstream full build, Loader/authenticated Web boot
+and eight native-tool checks. Live configured LSP/UI, human label review, Windows
+and stable promotion remain separate open gates.
+No formal support pin, merge, deployment or release changes follow from these passes.
