@@ -118,7 +118,7 @@ and evaluation problem before repository understanding is measured.
 | R2 | Non-deleting validation pipeline, labelled evaluation fixtures, current Harness compatibility, and repository-reader port | Artifact freshness/isolation checks; independently labelled corpus and baseline; official declarations at candidate SHA, provider parity, fail-closed behavior, Loader/Web smoke and manual queries | Artifacts/corpus delivered in `b107eea`; reader, candidate declarations, full build and native/Web verification pass; human/stable gates open |
 | R3 | Evidence quality and incremental retrieval | Separate parse input from excerpts; content identity; ignore-rule contract; fresh/stale distinction; deterministic top-k fixtures | Implemented and locally verified; comparative synthetic baseline retained; human review pending |
 | R4 | Optional symbol-level impact using Harness LSP | Definitions/references linked to precise locations, missing language server reported, no runtime breakage claims | Implemented opt-in; native real-server LSP and bounded Web rendering pass; human acceptance pending |
-| R5 | Legacy module separation and product polish | Public lifecycle behavior unchanged, reader/graph/adapter boundaries testable, bilingual usage, clean packed consumer validation | Physical adapter/helper extraction implemented; full suite including real Git adapter cases passes; Windows acceptance open |
+| R5 | Legacy module separation and product polish | Public lifecycle behavior unchanged, reader/graph/adapter boundaries testable, bilingual usage, clean packed consumer validation | Physical extraction and real Git adapter tests pass; Windows Node 24 source/tooling gates pass; native Windows Harness unverified |
 
 R2 must not silently turn direct local reads into remote access. Define provider
 identity, workspace mapping, cancellation, and partial reads before implementing
@@ -549,3 +549,34 @@ and npm CLI context fail explicitly. The workflow structure passes parsing and
 boundary checks using an existing installed YAML parser. The exact local record
 is in the [Windows change tasks](../openspec/changes/windows-quality-validation/tasks.md).
 Windows execution, independent review, remote Linux CI and merge remain pending.
+
+
+## Windows quality CI evidence (2026-10-07)
+
+The bounded Windows source/tooling gate **passes** on actual Windows Server 2025,
+Node `24.21.0`, npm `11.19.0` and Git `2.55.0.windows.5`. The job explicitly
+records the tested head `1ba8b2a7d4172404bd331dee5e76c452c15653cd` and
+checks out under a directory containing a space. All 141 tests pass with zero
+failures/skips, including the actual directory junction and Git worktree cases.
+Typecheck, 37-source-file safety lint, eight-case evaluation, fresh packed offline
+consumer, 38-item strict OpenSpec and patch formatting all pass; every job step
+reports success. [Windows run](https://github.com/zhenkun26/dsh-repo-atlas/actions/runs/37628603487).
+
+The existing Linux Node 22/24 jobs also pass every step at this PR candidate.
+[Linux run](https://github.com/zhenkun26/dsh-repo-atlas/actions/runs/37628603624).
+The initial exact candidate review reported no P1/P2. Subsequent ordinary tool
+Auto-review checks authorize operations; they are not a replacement code review
+or a quality/CI pass. No additional routine reviewer model was opened.
+
+This evidence update changes documentation only. Its resulting head must receive
+its own successful Windows and Linux CI before the authorized normal merge; old
+head green checks do not authorize a new head. The final head, merge and main
+verification are tracked by [PR #2](https://github.com/zhenkun26/dsh-repo-atlas/pull/2)
+and its exact Git/Actions records, rather than embedding a self-referential
+commit hash into this pre-merge snapshot. No branch is deleted or force-pushed.
+
+Windows native Harness Loader/Web/LSP execution was not tested by this workflow.
+The real Harness/LSP and bounded Web rendering evidence above remains macOS-only.
+Human corpus labels/UX approval, model-driven turns/streaming, cold host restart,
+real-repository/large-repository evaluation and stable formal-support promotion
+remain independent open gates. No source, dependency or compatibility pin changes.

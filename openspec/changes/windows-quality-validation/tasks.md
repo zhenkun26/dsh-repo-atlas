@@ -9,8 +9,8 @@
 ## 2. Verification and delivery
 
 - [x] 2.1 Pass full local tests, typecheck, lint, evaluation, fresh offline artifact and strict OpenSpec.
-- [ ] 2.2 Seal the exact candidate and pass independent delta review before push.
-- [ ] 2.3 Push non-force and verify real Windows Node 24 plus existing Linux Node 22/24 CI.
+- [x] 2.2 Seal the exact candidate and pass independent delta review before push.
+- [x] 2.3 Push non-force and verify real Windows Node 24 plus existing Linux Node 22/24 CI.
 - [ ] 2.4 Merge normally only after review/CI and verify the exact resulting main revision.
 
 Windows runtime evidence and remote delivery are pending until their actual runs.
@@ -43,3 +43,25 @@ evaluation under `.codex/evaluation/run-v7thSL/`. Console logs and raw native
 profiles remain outside version control. Git/PR/Actions state will identify the
 reviewed exact candidate and authoritative remote outcomes. No active change is
 archived by this local verification record.
+
+
+## Exact initial remote CI record (2026-10-07)
+
+Implementation candidate: `1ba8b2a7d4172404bd331dee5e76c452c15653cd`,
+non-force pushed to test/native-evidence-windows. Existing exact-delta review
+completed without P1/P2; draft [PR #2](https://github.com/zhenkun26/dsh-repo-atlas/pull/2)
+provides the authoritative final-head/merge record.
+
+- [Windows Node 24 run](https://github.com/zhenkun26/dsh-repo-atlas/actions/runs/37628603487):
+  all steps PASS on Windows Server 2025 / Node 24.21.0 / npm 11.19.0 / Git
+  2.55.0.windows.5; exact head recorded, checkout path has spaces, 141 tests with
+  zero failures/skips, full minimum gates and 38 strict OpenSpec items.
+- [Linux Node 22/24 run](https://github.com/zhenkun26/dsh-repo-atlas/actions/runs/37628603624):
+  both jobs and every step PASS, including the same full tests and quality gates.
+
+This documentation update still requires its own exact-head CI before normal
+merge. Task 2.4 is an external delivery step left unchecked in this pre-merge
+snapshot; linked Git/PR/Actions records determine its eventual completion.
+The workflow validates Windows source/tooling, not native Windows Harness
+Loader/Web/LSP. Human/model/streaming/cold-restart and stable gates remain open.
+Auto-review operation approval is not labelled code review or CI evidence.
