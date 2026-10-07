@@ -1,7 +1,12 @@
 import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+const compiler = fileURLToPath(new URL('../node_modules/typescript/bin/tsc', import.meta.url))
 
 try {
-  execFileSync('tsc', ['--noEmit'], { stdio: 'inherit' })
+  if (!existsSync(compiler)) throw Object.assign(new Error('Workspace compiler is missing'), { code: 'ENOENT' })
+  execFileSync(process.execPath, [compiler, '--noEmit'], { stdio: 'inherit', shell: false })
   console.log('PASS: TypeScript compiler completed.')
 } catch (error) {
   if (error?.code === 'ENOENT') {

@@ -8,11 +8,11 @@ import { checkWorkspacePath } from '../src/safety/path-policy.ts'
 import { createConfig } from '../src/config.ts'
 import { decideAction, isRepositoryInstruction } from '../src/safety/policy-gate.ts'
 
-test('path policy rejects traversal and external symlink escape', async () => {
+test('path policy rejects traversal and external directory-link escape', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'repo-atlas-root-'))
   const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'repo-atlas-outside-'))
   await fs.writeFile(path.join(outside, 'secret.txt'), 'outside')
-  await fs.symlink(outside, path.join(root, 'linked'))
+  await fs.symlink(outside, path.join(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir')
   assert.equal(checkWorkspacePath(root, '../outside').allowed, false)
   assert.equal(checkWorkspacePath(root, 'linked/secret.txt').allowed, false)
   assert.equal(checkWorkspacePath(root, '.').allowed, true)

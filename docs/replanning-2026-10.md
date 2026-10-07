@@ -50,7 +50,7 @@ hashes are in [the source review record](../reference/harness-upstream-review.js
 | `packages/core/session/src/types.ts` | Header retains optional cwd and exact session identity | Keep absolute cwd validation and WeakMap ownership; do not fall back to process cwd |
 | `packages/interaction/user-approval/src/types.ts`, `packages/goal/goal/src/index.ts` | Approval outcomes and Goal service remain available | Preserve existing lifecycle authorizers; source inspection is not assignability proof |
 | `packages/fs/fs/src/index.ts`, `packages/fs/README.md` | Execution-world filesystem seam and provider separation | Implemented reader port and Harness adapter; provider identity and containment regressions pass |
-| `packages/lsp/README.md` | Four read-only navigation operations, externally configured language servers | Implemented opt-in navigation through configured `ctx.lsp`; live LSP acceptance remains open |
+| `packages/lsp/README.md` | Four read-only navigation operations, externally configured language servers | Implemented opt-in configured `ctx.lsp`; native real-server machine checks pass; human acceptance remains open |
 | `packages/session-query/`, `packages/workflow/` | Host has session retrieval and execution workflow capabilities | Focus RepoAtlas on repository evidence; avoid expanding a second workflow engine |
 
 The [latest release notes](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1)
@@ -117,7 +117,7 @@ and evaluation problem before repository understanding is measured.
 | R1 | Extract graph construction; add `repo_atlas_search` and `repo_atlas_impact`; retain lifecycle | Resolution regressions, evidence-chain/cycle/budget tests, session isolation, cancellation, local compile/import | Delivered in `71e3231`; original verification retained |
 | R2 | Non-deleting validation pipeline, labelled evaluation fixtures, current Harness compatibility, and repository-reader port | Artifact freshness/isolation checks; independently labelled corpus and baseline; official declarations at candidate SHA, provider parity, fail-closed behavior, Loader/Web smoke and manual queries | Artifacts/corpus delivered in `b107eea`; reader, candidate declarations, full build and native/Web verification pass; human/stable gates open |
 | R3 | Evidence quality and incremental retrieval | Separate parse input from excerpts; content identity; ignore-rule contract; fresh/stale distinction; deterministic top-k fixtures | Implemented and locally verified; comparative synthetic baseline retained; human review pending |
-| R4 | Optional symbol-level impact using Harness LSP | Definitions/references linked to precise locations, missing language server reported, no runtime breakage claims | Implemented opt-in; provider regressions pass; live LSP/UI acceptance pending |
+| R4 | Optional symbol-level impact using Harness LSP | Definitions/references linked to precise locations, missing language server reported, no runtime breakage claims | Implemented opt-in; native real-server LSP and bounded Web rendering pass; human acceptance pending |
 | R5 | Legacy module separation and product polish | Public lifecycle behavior unchanged, reader/graph/adapter boundaries testable, bilingual usage, clean packed consumer validation | Physical adapter/helper extraction implemented; full suite including real Git adapter cases passes; Windows acceptance open |
 
 R2 must not silently turn direct local reads into remote access. Define provider
@@ -466,3 +466,86 @@ requires a real Windows environment. Stable support promotion requires a real
 stable upstream revision plus its complete compatibility acceptance. These gates,
 real-repository evaluation and measured large-repository recall remain pending;
 merge permission does not manufacture their evidence or archive unfinished changes.
+
+
+## Live LSP and bounded native Web evidence (2026-10-07)
+
+Tested source: `b8b4d21c6ba687aa8354d77da419921c97e0088d` (the normally
+merged repository-intelligence tree). Official Harness candidate:
+`5badb15009ae1756c3afe0ae0cef1faafc290ccc`, using its existing unmodified
+full build. No dependency or upstream source was changed. This follow-up
+supersedes the earlier pending *machine* LSP/Web observations above, while
+retaining their historical scope and the independent human acceptance gates.
+
+Ten native Agent/tool checks pass against the already installed
+`typescript-language-server 5.3.0` and TypeScript `6.0.3`: analysis prerequisite,
+provider-backed analysis, definitions, references, implementations, hover,
+same-directory Agent isolation, changed-source rejection, caller pre-cancellation,
+and cancellation during genuine LSP delegation. The latter observes the public
+service call and caller cancellation, without mocking results or claiming a
+specific JSON-RPC cancellation phase. Symbol navigation remains opt-in at the
+existing default 5,000 ms limit.
+
+The isolated macOS Web check passes a bounded rendering flow using existing Edge
+and the exact native host. Seven actual tool results are placed in synthetic
+native Session events; after browser refresh, all seven rendered JSON values
+equal the actual returned values. The flow covers all four LSP operations, the
+analysis report, before-analysis and changed-source blocked results, corresponding
+trace/result details, returning to the conversation, and a single completed
+Session after refresh. A blocked readonly result has `isError: false`; its
+`unavailable` status and reason remain visible in the JSON. This verifies policy
+result display, not an arbitrary transport failure renderer.
+
+Independent diagnosis found a test-fixture omission: the live nonblank Session
+had no explicit `workspace.attachSession` membership, and the earlier Ungrouped
+tree was collapsed. Adding public attachment and a `sessions.flush` checkpoint
+made it visible; the earlier screenshot did not establish a product defect.
+The first screenshot attempt also omitted the MCP client's declared roots.
+Declaring only the authorized temporary root through the official MCP protocol
+allowed the original path, with canonical containment validation intact.
+The final fixture explicitly overrides Documents to its own synthetic directory.
+No personal profile or API key is used; no model is invoked.
+
+The final browser record contains 83 requests, all to its owned loopback origin,
+and zero console warnings/errors. Its 14 recorded owned processes exit and its
+port is closed. Two inspected screenshots are retained locally rather than
+uploading temporary profiles, bootstrap authentication or raw logs:
+
+| Evidence | SHA-256 |
+|---|---|
+| Native definition details | `f9d349868992e9a575f769942ce57940f2d40a96a7c6bc3e2f0844624b52bf50` |
+| Native stale-source details | `1057c3e2244a95e4ed1c69d4834d1e58af7b40048df1461af558cd11ea0c5a35` |
+
+This is machine evidence from synthetic conversation events containing real
+tool results. It does not validate a model-driven turn, streaming, real tool
+timing, host cold restart/rehydration, other browsers, Windows, human UX approval
+or human corpus-label review. The accepted Harness pin remains unchanged;
+stable 0.2.x formal support still requires an available stable upstream revision
+and its separate complete compatibility review. Windows execution remains pending.
+
+
+## Windows validation preparation (2026-10-07)
+
+A separate `windows-quality-validation` OpenSpec change prepares a minimal Windows
+Node 24 workflow and developer-script portability repairs. It tests a checkout
+path containing a space, exact PR head, all existing minimum gates and real
+directory-link assertions with no Windows skip. The normal PR bootstrap is
+restricted to the same-repository `test/native-evidence-windows` branch; subsequent
+runs retain a manual entry. Linux Node 22/24 quality gates remain unchanged.
+Compiler/npm entry points use the current Node executable and shell:false.
+Safety lint matches its existing exact exceptions after separator normalization.
+Only three task-owned Git fixtures set local core.autocrlf=false for their exact
+LF byte assertions. No product source, dependency, lockfile or compatibility pin
+is changed. Windows acceptance, independent delta review and remote delivery
+remain pending; successful local macOS gates alone cannot close them.
+
+
+Local implementation verification passes on macOS Node 24.20.0: all 141 tests
+with zero skips/failures, typecheck, 37-source-file safety lint, fresh 153-file
+packed offline consumer, all eight evaluation cases and 38 strict OpenSpec
+items. Runtime/evaluator/label hashes, configuration, numerical metrics and read
+charges match the preceding repair baseline; only timings vary. Missing compiler
+and npm CLI context fail explicitly. The workflow structure passes parsing and
+boundary checks using an existing installed YAML parser. The exact local record
+is in the [Windows change tasks](../openspec/changes/windows-quality-validation/tasks.md).
+Windows execution, independent review, remote Linux CI and merge remain pending.
