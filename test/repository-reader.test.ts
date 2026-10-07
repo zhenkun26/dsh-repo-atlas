@@ -416,3 +416,123 @@ test('directory-only ignore rules do not suppress a same-named file in explicit 
   assert.deepEqual(session.scan.files.map(file => file.relativePath), ['src/core.ts'])
   assert.ok(session.sourceSnapshots?.has('src/core.ts'))
 })
+
+
+test('growing provider files cannot read more bytes than their reserved scanner charge', async () => {
+  for (const initialSize of [0, 1]) {
+    const provider = new MemoryFs()
+    const original = provider.stat.bind(provider)
+    let fileStats = 0
+    provider.stat = async (target, signal) => {
+      const info = await original(target, signal)
+      if (provider.paths.get(target.targetKey) === 'src/core.ts') {
+        return { type: 'file' as const, size: fileStats++ % 2 === 0 ? initialSize : 900, version: String(fileStats) }
+      }
+      return info
+    }
+    const reader = await createHarnessRepositoryReader(provider, provider.workspaceRoot)
+    const caps: number[] = []
+    const read = reader.read.bind(reader)
+    reader.read = async (name, cap, signal) => { caps.push(cap); return read(name, cap, signal) }
+    const scanner = new RepositoryScanner(provider.workspaceRoot, { respectGitIgnore: false, maxFileBytes: 1000, maxTotalBytes: 1000 }, reader)
+    for (let attempt = 0; attempt < 3; attempt++) assert.equal((await scanner.readText('src/core.ts')).status, 'read-failed')
+    assert.deepEqual(caps, [initialSize, initialSize, initialSize])
+    assert.deepEqual(provider.readPaths, [])
+    assert.equal(scanner.snapshot().budget.readBytes, initialSize * 3)
+    assert.ok(scanner.snapshot().budget.readBytes <= 1000)
+  }
+})
+
+test('post-read version failure keeps the full reservation and blocks a subsequent oversized attempt', async () => {
+  const provider = new MemoryFs()
+  provider.files.set('src/core.ts', 'x'.repeat(900))
+  provider.files.set('src/index.ts', 'y'.repeat(900))
+  const original = provider.readBytes.bind(provider)
+  let transferredBytes = 0
+  provider.readBytes = async (target, signal, cap) => {
+    const bytes = await original(target, signal, cap)
+    transferredBytes += bytes.byteLength
+    provider.versions.set(provider.paths.get(target.targetKey)!, 'changed-after-read')
+    return bytes
+  }
+  const reader = await createHarnessRepositoryReader(provider, provider.workspaceRoot)
+  const scanner = new RepositoryScanner(provider.workspaceRoot, { respectGitIgnore: false, maxTotalBytes: 1000 }, reader)
+  assert.equal((await scanner.readText('src/core.ts')).status, 'read-failed')
+  assert.equal(scanner.snapshot().budget.readBytes, 900)
+  assert.equal((await scanner.readText('src/index.ts')).status, 'budget-exhausted')
+  assert.equal(transferredBytes, 900)
+  assert.equal(scanner.snapshot().budget.readBytes, 900)
+  assert.deepEqual(provider.readPaths, ['src/core.ts'])
+})
+
+test('root ignore growth fails before content I/O and prevents source reads', async () => {
+  const provider = new MemoryFs()
+  provider.files.set('.gitignore', 'x'.repeat(900))
+  const original = provider.stat.bind(provider)
+  let policyStats = 0
+  provider.stat = async (target, signal) => {
+    const info = await original(target, signal)
+    return provider.paths.get(target.targetKey) === '.gitignore'
+      ? { type: 'file' as const, size: policyStats++ === 0 ? 1 : 900, version: String(policyStats) } : info
+  }
+  const reader = await createHarnessRepositoryReader(provider, provider.workspaceRoot)
+  const caps: number[] = []
+  const read = reader.read.bind(reader)
+  reader.read = async (name, cap, signal) => { caps.push(cap); return read(name, cap, signal) }
+  const scanner = new RepositoryScanner(provider.workspaceRoot, { maxTotalBytes: 1000 }, reader)
+  const scan = await scanner.discover()
+  assert.equal(scan.budget.exhausted, true)
+  assert.equal(scan.budget.readBytes, 1)
+  assert.ok(scan.failures.some(item => item.path === '.gitignore'))
+  assert.equal((await scanner.readText('src/core.ts')).status, 'budget-exhausted')
+  assert.deepEqual(caps, [1])
+  assert.deepEqual(provider.readPaths, [])
+})
+
+test('stable empty and exact-budget provider files retain successful bounded reads', async () => {
+  for (const size of [0, 1000]) {
+    const provider = new MemoryFs()
+    provider.files.set('src/core.ts', 'x'.repeat(size))
+    const reader = await createHarnessRepositoryReader(provider, provider.workspaceRoot)
+    const scanner = new RepositoryScanner(provider.workspaceRoot, { respectGitIgnore: false, maxTotalBytes: 1000 }, reader)
+    assert.equal((await scanner.readText('src/core.ts')).status, 'confirmed')
+    assert.equal(scanner.snapshot().budget.readBytes, size)
+    assert.deepEqual(provider.readPaths, ['src/core.ts'])
+  }
+})
+
+test('schema-3 unmarked module caches are reread and reparsed instead of reused', async () => {
+  const provider = new MemoryFs()
+  const reader = await createHarnessRepositoryReader(provider, provider.workspaceRoot)
+  const first = await analyzeRepository(goal, provider.workspaceRoot, {}, undefined, [], undefined, reader)
+  const legacy = structuredClone(first.evidenceCache!)
+  legacy.schemaVersion = 3 as typeof legacy.schemaVersion
+  for (const entry of legacy.entries) for (const item of entry.evidence) if (item.astObservation) delete item.astObservation.moduleSpecifierExact
+  provider.readPaths.length = 0
+  const second = await analyzeRepository(goal, provider.workspaceRoot, {}, undefined, [], legacy, reader)
+  assert.equal(second.incrementalSummary?.mode, 'full')
+  assert.ok(provider.readPaths.includes('src/index.ts'))
+  assert.ok(second.ast?.every(item => item.parser !== 'cache'))
+  assert.ok(second.evidence.some(item => item.astObservation?.moduleSpecifierExact === true))
+  assert.deepEqual(second.edges.map(edge => [edge.from, edge.to]), first.edges.map(edge => [edge.from, edge.to]))
+})
+
+
+test('cancelled provider reads retain their complete byte reservation', async () => {
+  const provider = new MemoryFs()
+  provider.files.set('src/core.ts', 'x'.repeat(900))
+  provider.files.set('src/index.ts', 'y'.repeat(900))
+  const controller = new AbortController()
+  const original = provider.readBytes.bind(provider)
+  provider.readBytes = async (target, signal, cap) => {
+    const bytes = await original(target, signal, cap)
+    controller.abort()
+    return bytes
+  }
+  const reader = await createHarnessRepositoryReader(provider, provider.workspaceRoot)
+  const scanner = new RepositoryScanner(provider.workspaceRoot, { respectGitIgnore: false, maxTotalBytes: 1000 }, reader)
+  assert.equal((await scanner.readText('src/core.ts', controller.signal)).status, 'interrupted')
+  assert.equal(scanner.snapshot().budget.readBytes, 900)
+  assert.equal((await scanner.readText('src/index.ts')).status, 'budget-exhausted')
+  assert.deepEqual(provider.readPaths, ['src/core.ts'])
+})

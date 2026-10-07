@@ -29,6 +29,8 @@ All notable RepoAtlas changes will be documented here. The existing `v0.1.0` tag
 
 ### Fixed
 
+- Match content and root-ignore I/O caps to their complete reserved byte charge, retaining failed/cancelled attempts.
+- Resolve only explicitly exact module values; preserve semantic whitespace, keep lossy/legacy literals unresolved and invalidate old AST caches.
 - Normalize tool DTO outputs for the native Harness lossless-JSON registry: omit
   absent object fields and reject lossy values without changing execution authority.
 - Verify the exact installed Harness package manager and built public CLI; follow

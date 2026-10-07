@@ -111,6 +111,8 @@ export interface AstObservation {
   summary: string
   name?: string
   moduleSpecifier?: string
+  /** True only for an unchanged, bounded semantic value; absent/false is display-only. */
+  moduleSpecifierExact?: boolean
 }
 
 export type AstParser = 'typescript-compiler' | 'bounded-structural' | 'cache' | 'unavailable'
@@ -127,7 +129,7 @@ export interface AstParseResult extends AstFileAnalysis {
   observations: AstObservation[]
 }
 
-export const EVIDENCE_CACHE_SCHEMA_VERSION = 3 as const
+export const EVIDENCE_CACHE_SCHEMA_VERSION = 4 as const
 
 export interface EvidenceFingerprint {
   relativePath: string

@@ -414,3 +414,55 @@ No private logs or generated package are published with this increment.
 Human label review, real-repository evaluation, configured LSP/UI acceptance,
 Windows execution and stable Harness support remain open. Synthetic passes do
 not close those gates; no active change is archived or compatibility pin promoted.
+
+
+## Independent review repairs and delivery contract (2026-10-07)
+
+Full review of the six-commit main-to-candidate change reproduced two P2 defects
+that blocked delivery: scanner I/O caps exceeded the precharged metadata sizes,
+and formatted AST module values could select a different observed file. Both are
+repaired in a separate increment after the frozen evaluation candidate.
+
+Content and root-ignore reads now pass precisely the reserved metadata size as
+their cap. Growth is rejected before I/O, and failure/cancellation after I/O retains
+the complete charge. Zero-length and exact-budget reads remain valid. Module
+observations retain exact semantic text only within the existing 160 UTF-16
+code-unit bound; summary formatting stays separate. The optional
+`moduleSpecifierExact` flag must be true before resolution. Oversized, redacted,
+legacy unmarked and unreliable structural literals remain unresolved with
+`unverified-module-specifier`. Compiler values use decoded TypeScript text;
+fallback escapes are not partially decoded. Cache schema 4 invalidates schema-3
+AST evidence and reparses it within unchanged budgets.
+
+The unfiltered suite passes 139 cases. The isolated fallback probe passes 11
+checks; the same probe with the already installed official TypeScript 6.0.3 API
+passes 9 checks and asserts actual parser/version. This repository's TypeScript
+7.0.2 supplies the native compiler CLI but lacks the JavaScript compiler API, so
+ordinary Node CI validates fallback rather than claiming compiler-path coverage.
+No dependency was added. Continuous real-compiler CI can later compose the probe
+with the existing manual Harness environment; it remains distinct from default CI.
+
+Fresh build/pack/offline imports, typecheck, safety lint and strict OpenSpec (37
+items) pass. The clean exact alpha Harness at `5badb150...` reruns official
+declarations/Cordis, Loader, authenticated Web and 8 native tool-flow checks using
+its existing official build. No upstream source or dependency tree is changed.
+The [repair baseline](../evaluation/baselines/budget-module-identity-2026-10-07.json)
+records the changed runtime source hash; all eight cases preserve their previous
+graph/query/impact, budget/read-charge and reference metrics and independent labels.
+The [repair verification record](../openspec/changes/bounded-read-and-module-identity-repair/tasks.md)
+contains exact commands and retained evidence.
+
+The authorized integration endpoint is the current repository-intelligence
+implementation merged normally into main after full-scope independent review,
+accurate sensitive-content checks and exact Node 22/24 remote CI. Six earlier
+commits plus this repair must be reviewed as the whole PR; a small batch review
+alone is insufficient. Main and the branch are checked by exact remote SHA.
+No force push, branch-protection bypass, release or deployment is part of that
+endpoint. Git/PR/Actions state remains authoritative for remote delivery.
+
+Human label review requires an actual person reviewing source and labels. Real
+LSP/UI requires the configured language server and observed user flow; Windows
+requires a real Windows environment. Stable support promotion requires a real
+stable upstream revision plus its complete compatibility acceptance. These gates,
+real-repository evaluation and measured large-repository recall remain pending;
+merge permission does not manufacture their evidence or archive unfinished changes.

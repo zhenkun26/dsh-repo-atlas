@@ -5,7 +5,7 @@ export interface UnresolvedImport {
   sourcePath: string
   moduleSpecifier: string
   evidenceId: string
-  reason: 'external-or-alias' | 'outside-snapshot-or-ambiguous'
+  reason: 'external-or-alias' | 'outside-snapshot-or-ambiguous' | 'unverified-module-specifier'
 }
 
 /** Resolve only observed files; never guess that a directory means its first child. */
@@ -39,16 +39,16 @@ export function buildDependencyGraph(files: readonly ScannedFile[], evidence: re
   const unresolved = new Map<string, UnresolvedImport>()
   for (const item of evidence) {
     const observation = item.astObservation
-    if (!paths.has(item.sourcePath) || item.evidenceKind !== 'ast' || !observation?.moduleSpecifier) continue
+    if (!paths.has(item.sourcePath) || item.evidenceKind !== 'ast' || typeof observation?.moduleSpecifier !== 'string') continue
     if (!['import', 'export'].includes(observation.kind)) continue
     if (!['syntax-confirmed', 'inferred'].includes(item.status)) continue
     const specifier = observation.moduleSpecifier
-    const target = resolveLocalImport(item.sourcePath, specifier, paths)
+    const target = observation.moduleSpecifierExact === true ? resolveLocalImport(item.sourcePath, specifier, paths) : undefined
     if (!target) {
       const key = `${item.sourcePath}\0${specifier}`
       unresolved.set(key, {
         sourcePath: item.sourcePath, moduleSpecifier: specifier, evidenceId: item.evidenceId,
-        reason: specifier.startsWith('.') ? 'outside-snapshot-or-ambiguous' : 'external-or-alias',
+        reason: observation.moduleSpecifierExact !== true ? 'unverified-module-specifier' : specifier.startsWith('.') ? 'outside-snapshot-or-ambiguous' : 'external-or-alias',
       })
       continue
     }

@@ -86,5 +86,54 @@
     "offlineConsumer": ".codex/artifacts/build-hOY8l5/",
     "evaluation": "evaluation/baselines/runtime-json-output-2026-10-05.json",
     "note": "Raw logs and task-owned artifacts are retained locally and ignored by Git; this record contains no bootstrap credentials."
-  }
+  },
+  "followUps": [
+    {
+      "verifiedOn": "2026-10-07",
+      "scope": "Independent review repair; experimental macOS automated rerun, not formal support promotion",
+      "sourceSha256": "3ab93269ada669f6d64e90f88e25ddd00048f6e5222cb7db19b5df1de0e3e362",
+      "fullSuite": {
+        "passed": 139,
+        "failed": 0,
+        "skipped": 0
+      },
+      "strictOpenSpec": {
+        "version": "1.7.0",
+        "items": 37,
+        "failed": 0
+      },
+      "isolatedFallback": {
+        "parser": "bounded-structural",
+        "checks": 11,
+        "status": "PASS"
+      },
+      "realCompiler": {
+        "version": "6.0.3",
+        "parser": "typescript-compiler",
+        "checks": 9,
+        "status": "PASS"
+      },
+      "candidateRuntime": {
+        "status": "PASS",
+        "nativeToolChecks": 8,
+        "officialDeclarations": "PASS",
+        "officialCordisComponent": "PASS",
+        "loaderActivation": "PASS",
+        "authenticatedWeb": "PASS",
+        "upstreamBuild": "Reused existing clean exact official build; no upstream source or dependency changes"
+      },
+      "freshOfflineConsumer": "PASS",
+      "evaluation": "evaluation/baselines/budget-module-identity-2026-10-07.json",
+      "verificationRecord": "openspec/changes/bounded-read-and-module-identity-repair/tasks.md",
+      "defaultCiParser": "TypeScript 7.0.2 has no JavaScript compiler API; fallback coverage only",
+      "pending": [
+        "humanLabels",
+        "configuredLsp",
+        "humanUi",
+        "windows",
+        "realRepositoryEvaluation",
+        "stablePromotion"
+      ]
+    }
+  ]
 }

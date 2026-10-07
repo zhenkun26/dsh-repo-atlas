@@ -104,3 +104,6 @@ without new recall minima. CI runs this command on Node 22/24.
 所有样例另检查图引用和显式不支持关系；原六例不增加召回下限，保留原实测指标。
 CI 在 Node 22/24 执行此命令。别名和包名仍不解析，标签仍待人工审阅；
 合成样例完整召回不代表真实项目、运行时影响、LSP/UI 或 Windows 验收。
+
+The [budget/module-identity repair baseline](baselines/budget-module-identity-2026-10-07.json) records the repaired runtime source hash with unchanged eight-case metrics and labels. Independent compiler/fallback identity probes cover whitespace/prefix/escape and legacy provenance outside this corpus.
+[预算与模块身份修复基线](baselines/budget-module-identity-2026-10-07.json) 如实记录修复后的源码哈希，八例指标与标签不变；独立 compiler/fallback probe 另覆盖空白、共同前缀、转义和旧来源标记。

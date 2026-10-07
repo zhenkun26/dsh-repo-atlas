@@ -71,8 +71,8 @@ export class RepositoryScanner {
       return { relativePath: normalized, status: 'budget-exhausted', redacted: false, reason: 'total read budget exhausted', sizeBytes: stat.size }
     }
     try {
-      const readCap = Math.min(this.config.maxFileBytes, this.config.maxTotalBytes - this.readBytes)
-      this.readBytes += stat.size // Charge the bounded attempt even if the backend fails after reading.
+      const readCap = stat.size
+      this.readBytes += readCap // Reserve the entire I/O cap; failed or cancelled attempts are not refunded.
       const buffer = Buffer.from(await this.reader.read(normalized, readCap, signal))
       if (signal?.aborted) return this.interrupted(normalized)
       if (buffer.byteLength > stat.size || buffer.byteLength > this.config.maxFileBytes || this.readBytes > this.config.maxTotalBytes) {
@@ -277,8 +277,8 @@ export class RepositoryScanner {
       if (info.size > this.config.maxTotalBytes - this.readBytes) throw new Error('root .gitignore exceeds the remaining read budget')
       const decision = this.beginAction('read', '.gitignore')
       if (!decision.allowed) throw new Error(decision.reason)
-      const readCap = Math.min(16_384, this.config.maxFileBytes, this.config.maxTotalBytes - this.readBytes)
-      this.readBytes += info.size
+      const readCap = info.size
+      this.readBytes += readCap
       const bytes = await this.reader.read('.gitignore', readCap, signal)
       const after = await this.reader.stat('.gitignore', signal)
       if (bytes.byteLength !== info.size || bytes.byteLength > 16_384 || this.readBytes > this.config.maxTotalBytes || after?.type !== 'file' || after.size !== info.size || info.version !== after.version || info.mtimeMs !== after.mtimeMs || info.ctimeMs !== after.ctimeMs) throw new Error('root .gitignore changed or exceeded its read cap')

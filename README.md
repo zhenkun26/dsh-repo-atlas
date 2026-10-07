@@ -240,6 +240,9 @@ When citing, integrating, documenting, or deriving from this project, please ide
 
 ## Development API / 开发 API
 
+Dependency observations expose optional `moduleSpecifierExact`. Graph resolution requires `true`; older producers without the flag remain unresolved. Exact values preserve whitespace within the existing 160 UTF-16 code-unit bound, while summaries remain display text. Schema-3 caches are invalidated and reparsed under schema 4.
+模块观察新增可选 `moduleSpecifierExact`；只有 `true` 才可用于依赖解析，旧 producer 没有此标记时保留为未解析。精确值在既有 160 个 UTF-16 单元上限内保留空白，摘要仅用于展示；schema-3 缓存失效后在 schema 4 下重新解析。
+
 The core API can be used from a source checkout for experiments and tests:<br>
 核心 API 可以从源码 checkout 调用，用于实验和测试：
 

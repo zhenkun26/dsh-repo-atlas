@@ -15,7 +15,7 @@ const file = (relativePath: string): ScannedFile => ({ relativePath, kind: 'text
 const evidence = (sourcePath: string, moduleSpecifier: string, evidenceId: string, compiler = true): Evidence => ({
   evidenceId, sourcePath, locator: '1:1', observation: `import from ${moduleSpecifier}`, status: 'syntax-confirmed',
   redactionState: 'clean', evidenceKind: 'ast', astParser: compiler ? 'typescript-compiler' : 'bounded-structural',
-  astObservation: { kind: 'import', moduleSpecifier, line: 1, column: 1, summary: 'import' },
+  astObservation: { kind: 'import', moduleSpecifier, moduleSpecifierExact: true, line: 1, column: 1, summary: 'import' },
 })
 async function snapshot(): Promise<AnalysisSession> {
   return analyzeRepository(resolveStart(createGoalSpec({ intent: 'onboarding' }), 'direct'), root)
@@ -124,4 +124,18 @@ test('retrieval favors distinct source files before repeated observations and us
   assert.equal(found.ranking, 'lexical-with-file-diversity')
   assert.equal(found.totalMatches, 3)
   assert.equal(found.truncated, true)
+})
+
+
+test('unmarked legacy and explicitly unverified module observations remain unresolved', () => {
+  const legacy = evidence('src/main.ts', './lib.ts', 'legacy')
+  delete legacy.astObservation!.moduleSpecifierExact
+  const unverified = evidence('src/main.ts', './lib.ts', 'unverified')
+  unverified.astObservation!.moduleSpecifierExact = false
+  for (const item of [legacy, unverified]) {
+    const graph = buildDependencyGraph([file('src/main.ts'), file('src/lib.ts')], [item])
+    assert.deepEqual(graph.edges, [])
+    assert.deepEqual(graph.unresolved.map(value => value.reason), ['unverified-module-specifier'])
+    assert.equal(graph.unresolved[0].evidenceId, item.evidenceId)
+  }
 })
