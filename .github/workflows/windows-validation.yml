@@ -1,0 +1,80 @@
+name: Windows validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/windows-validation.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Windows Node 24
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.ref == 'test/native-evidence-windows' &&
+           github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: repo-atlas validation
+    env:
+      OPENSPEC_TELEMETRY: '0'
+      DO_NOT_TRACK: '1'
+
+    steps:
+      - name: Check out exact validation revision in a path with spaces
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: repo-atlas validation
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+          cache-dependency-path: repo-atlas validation/package-lock.json
+
+      - name: Record tested revision and Windows toolchain
+        run: |
+          git rev-parse HEAD
+          node --version
+          npm --version
+          git --version
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test without platform skips
+        run: npm test
+
+      - name: Safety lint
+        run: npm run lint
+
+      - name: Evaluate repository intelligence
+        run: npm run evaluate:repository
+
+      - name: Verify local built artifact
+        run: npm run verify:built-artifact
+
+      - name: Validate OpenSpec specs and active changes
+        run: npx --yes @fission-ai/openspec@1.7.0 validate --all --strict --no-interactive
+
+      - name: Check patch formatting
+        run: git diff --check

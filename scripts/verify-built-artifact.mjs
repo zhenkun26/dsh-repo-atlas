@@ -42,6 +42,12 @@ try {
   assertCondition(manifest.dsh?.bundle?.patch === './cordis.patch.yml', 'the dsh bundle patch declaration changed unexpectedly')
   assertCondition(JSON.stringify(manifest.files) === JSON.stringify(['dist/', 'cordis.patch.yml', 'README.md', 'LICENSE', 'NOTICE.md']), 'package files allowlist changed unexpectedly')
 
+  // npm's Windows command shim is not an executable. Use the actual npm CLI
+  // supplied by npm run, preserving separate arguments and shell:false.
+  const npmCli = process.env.npm_execpath
+  assertCondition(typeof npmCli === 'string' && basename(npmCli) === 'npm-cli.js' && existsSync(npmCli),
+    'Run this verifier through npm run verify:built-artifact so the installed npm CLI is explicit')
+
   const build = buildArtifact({ projectRoot: repoRoot, projectDist: false })
   tempRoot = build.artifactRoot
   const distRoot = join(build.packageRoot, 'dist')
@@ -55,7 +61,7 @@ try {
   }
 
   const npmEnvironment = { ...process.env, npm_config_cache: join(tempRoot, 'npm-cache') }
-  const packOutput = run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', tempRoot], { cwd: build.packageRoot, env: npmEnvironment })
+  const packOutput = run(process.execPath, [npmCli, 'pack', '--ignore-scripts', '--json', '--pack-destination', tempRoot], { cwd: build.packageRoot, env: npmEnvironment })
   const packResult = JSON.parse(packOutput)
   const packageFiles = packResult[0]?.files?.map((entry) => entry.path) ?? []
   for (const required of ['dist/index.js', 'dist/index.d.ts', 'dist/harness/plugin.js', 'dist/harness/plugin.d.ts', 'cordis.patch.yml', 'README.md', 'LICENSE', 'NOTICE.md']) {
@@ -70,14 +76,14 @@ try {
   const tarball = join(tempRoot, tarballName)
   const consumer = join(tempRoot, 'consumer')
   mkdirSync(consumer)
-  run('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', consumer, tarball], { env: npmEnvironment })
+  run(process.execPath, [npmCli, 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', consumer, tarball], { env: npmEnvironment })
   const installedPackage = JSON.parse(readFileSync(join(consumer, 'node_modules', manifest.name, 'package.json'), 'utf8'))
   assertCondition(installedPackage.name === 'dsh-repo-atlas', 'installed artifact lost the dsh-repo-atlas package identity')
   assertCondition(installedPackage.private === true, 'installed artifact lost private package metadata')
   assertCondition(installedPackage.license === 'MIT', 'installed artifact lost MIT metadata')
   assertCondition(installedPackage.exports?.['.']?.default === './dist/index.js', 'installed root export does not use dist')
   assertCondition(installedPackage.exports?.['./harness']?.default === './dist/harness/plugin.js', 'installed Harness export does not use dist')
-  run('node', ['--input-type=module', '--eval', `
+  run(process.execPath, ['--input-type=module', '--eval', `
     const root = await import('dsh-repo-atlas')
     const harness = await import('dsh-repo-atlas/harness')
     if (typeof root.analyzeRepository !== 'function') throw new Error('root export missing analyzeRepository')

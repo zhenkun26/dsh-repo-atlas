@@ -1524,6 +1524,8 @@ test('node Git adapter creates and removes a detached worktree without network a
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'repo-atlas-git-'))
   try {
     await runGit(root, ['init', '-q'])
+    // These synthetic fixtures assert exact LF bytes across real worktree checkouts.
+    await runGit(root, ['config', 'core.autocrlf', 'false'])
     await runGit(root, ['config', 'user.email', 'repo-atlas@example.test'])
     await runGit(root, ['config', 'user.name', 'RepoAtlas Test'])
     await fs.writeFile(path.join(root, 'README.md'), 'fixture\n')
@@ -1572,6 +1574,8 @@ test('node Git adapter fast-forwards the clean source workspace from an isolated
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'repo-atlas-landing-'))
   try {
     await runGit(root, ['init', '-q'])
+    // These synthetic fixtures assert exact LF bytes across real worktree checkouts.
+    await runGit(root, ['config', 'core.autocrlf', 'false'])
     await runGit(root, ['config', 'user.email', 'repo-atlas@example.test'])
     await runGit(root, ['config', 'user.name', 'RepoAtlas Test'])
     await fs.writeFile(path.join(root, 'README.md'), 'fixture\n')
@@ -1620,6 +1624,8 @@ test('node Git adapter refuses source revision drift without creating a merge', 
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'repo-atlas-landing-drift-'))
   try {
     await runGit(root, ['init', '-q'])
+    // These synthetic fixtures assert exact LF bytes across real worktree checkouts.
+    await runGit(root, ['config', 'core.autocrlf', 'false'])
     await runGit(root, ['config', 'user.email', 'repo-atlas@example.test'])
     await runGit(root, ['config', 'user.name', 'RepoAtlas Test'])
     await fs.writeFile(path.join(root, 'README.md'), 'fixture\n')

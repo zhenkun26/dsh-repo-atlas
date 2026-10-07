@@ -60,11 +60,11 @@ test('failed compilation retains a failed record and never projects a fresh dist
   assert.deepEqual(record.files, [])
 })
 
-test('symbolic-link dist is rejected and its target remains intact', { skip: process.platform === 'win32' ? 'Windows symlink privileges require separate acceptance' : false }, () => {
+test('directory-link dist is rejected and its target remains intact', () => {
   const root = project()
   const outside = mkdtempSync(path.join(tmpdir(), 'repo-atlas-build-outside-'))
   writeFileSync(path.join(outside, 'sentinel.txt'), 'unchanged')
-  symlinkSync(outside, path.join(root, 'dist'), 'dir')
+  symlinkSync(outside, path.join(root, 'dist'), process.platform === 'win32' ? 'junction' : 'dir')
   assert.throws(() => buildArtifact({ projectRoot: root, compilerPath }), /real directory/)
   assert.equal(readFileSync(path.join(outside, 'sentinel.txt'), 'utf8'), 'unchanged')
 })
