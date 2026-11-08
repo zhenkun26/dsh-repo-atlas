@@ -139,6 +139,7 @@ npm ci
 npm run build
 
 cd /absolute/path/to/deepseek-harness
+git checkout --detach 47f943859bef60e4160492346772ded9b24f765a
 pnpm install
 pnpm dsh plugin --profile web add /absolute/path/to/dsh-repo-atlas
 pnpm dsh web
@@ -169,8 +170,8 @@ Builds first create a fresh package under ignored `.codex/artifacts/build-*` and
 `evaluate:repository` records default-budget precision/recall and coverage using a [synthetic labelled corpus](evaluation/README.md). Low-recall results remain visible; the labels are pending human review.<br>
 `evaluate:repository` 使用[合成标注语料](evaluation/README.md)记录默认预算下的精确率、召回率和覆盖状态，保留低召回结果；标签仍待人工审阅。
 
-Maintainers can run the full repository gates with:<br>
-维护者可以运行完整仓库门禁：
+Maintainers can run the full repository gates below. `validate:openspec` requires OpenSpec CLI 1.7.0 separately from `npm ci`; see the pinned command in [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).<br>
+维护者可以运行以下完整仓库门禁。`validate:openspec` 还需另行准备 OpenSpec CLI 1.7.0，`npm ci` 不会安装它；固定版本命令见 [CONTRIBUTING.md](CONTRIBUTING.md#development-setup)。
 
 ```bash
 npm run validate:openspec
